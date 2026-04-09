@@ -605,7 +605,7 @@ function shortName(s) {
 // ── Fetch existing Smartsheet rows ─────────────────────────────────────
 async function fetchExistingRows(sheetId, ssKey) {
   log('Fetching existing Smartsheet rows for duplicate check…','info');
-  const resp = await fetch(`https://api.smartsheet.com/2.0/sheets/${sheetId}`, {
+  const resp = await fetch(`https://smartsheet-proxy.rebecca-91f.workers.dev/2.0/sheets/${sheetId}`, {
     headers: {'Authorization':'Bearer '+ssKey}
   });
   if (!resp.ok) {
@@ -725,7 +725,7 @@ async function pushToSmartsheet() {
   // Execute updates (PUT)
   for (const upd of toUpdate) {
     try {
-      const resp=await fetch(`https://api.smartsheet.com/2.0/sheets/${sheetId}/rows`,{
+      const resp=await fetch(`https://smartsheet-proxy.rebecca-91f.workers.dev/2.0/sheets/${sheetId}/rows`,{
         method:'PUT',
         headers:{'Authorization':'Bearer '+ssKey,'Content-Type':'application/json'},
         body:JSON.stringify([{id:upd.rowId,cells:upd.cells}])
@@ -778,7 +778,7 @@ async function pushToSmartsheet() {
     else { payload.siblingId=pos.siblingId; payload.above=true; }
 
     try {
-      const resp=await fetch(`https://api.smartsheet.com/2.0/sheets/${sheetId}/rows`,{
+      const resp=await fetch(`https://smartsheet-proxy.rebecca-91f.workers.dev/2.0/sheets/${sheetId}/rows`,{
         method:'POST',
         headers:{'Authorization':'Bearer '+ssKey,'Content-Type':'application/json'},
         body:JSON.stringify([payload])
