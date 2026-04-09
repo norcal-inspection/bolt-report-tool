@@ -436,8 +436,8 @@ function parseReportText(text, filename) {
   const ir_number = irM ? `IR#${irM[1]}` : '';
 
   // Member row regex: matches Bolts/Nuts/Washers lines
-  // Columns separated by 2+ spaces (layout-extracted text)
-  const memberRe = /^\s*(Bolts|Nuts|Washers)\s+(\d+)\s+(Yes|No)\s+(\d+)\s+(.+?)\s{2,}([\d/]+(?:\s[\d/]+)?|-)\s+([\d/]+(?:\s[\d/]+)?|-)\s+(.+?)\s*$/gm;
+  // Anchored on right-side columns (diameter/length/ASTM) — spacing-independent
+  const memberRe = /^\s*(Bolts|Nuts|Washers)\s+(\d+)\s+(Yes|No)\s+(\d+)\s+(.+?)\s+((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|-)\s+((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|-)\s+([A-Z].+?)\s*$/gm;
 
   // Set label regex
   const setLabelRe = /\bSet\s+(\d+)\b/g;
