@@ -324,15 +324,6 @@
       </div>
     </div>
 
-    <div class="card" id="debugCard" style="border-color:#3d4a68;">
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>// Debug — Raw PDF.js Text Output</span>
-        <button class="btn btn-secondary" style="font-size:10px;padding:4px 10px;" onclick="document.getElementById('debugText').style.display = document.getElementById('debugText').style.display === 'none' ? 'block' : 'none'">Toggle</button>
-      </div>
-      <p style="font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:10px;">Copy everything in the box below and paste it into Claude so the parser can be fixed against real browser output.</p>
-      <textarea id="debugText" readonly style="display:block;width:100%;height:300px;background:var(--bg);border:1px solid var(--border);color:var(--text-muted);font-family:var(--mono);font-size:11px;padding:12px;resize:vertical;"></textarea>
-    </div>
-
     <div class="card">
       <div class="card-title">// Sheet Settings</div>
       <div class="input-row">
@@ -401,29 +392,18 @@ async function handleFile(file) {
     setProgress(true, `Reading page ${i} of ${totalPages}…`, Math.round((i / totalPages) * 80));
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    // Reconstruct lines: items on the same Y coordinate go on the same line
-    // Items with a big Y jump get a newline
-    let pageLines = [];
-    let curLine = [];
-    let lastY = null;
-    const Y_THRESHOLD = 2; // pts — items within this are on the same line
+    // Group items by Y, sort descending (high Y = top of page in PDF coords)
+    const lineMap = {};
     for (const item of content.items) {
       if (!item.str) continue;
       const y = item.transform ? Math.round(item.transform[5]) : 0;
-      if (lastY !== null && Math.abs(y - lastY) > Y_THRESHOLD) {
-        if (curLine.length) pageLines.push(curLine.join(' '));
-        curLine = [];
-      }
-      curLine.push(item.str);
-      lastY = y;
+      if (!lineMap[y]) lineMap[y] = [];
+      lineMap[y].push(item.str);
     }
-    if (curLine.length) pageLines.push(curLine.join(' '));
-    // Reverse because PDF Y coords go bottom-up
-    allText += pageLines.reverse().join('\n') + '\n';
+    const sortedYs = Object.keys(lineMap).map(Number).sort((a, b) => b - a);
+    const pageLines = sortedYs.map(y => lineMap[y].join(' '));
+    allText += pageLines.join('\n') + '\n';
   }
-  // Store raw text for debug inspection
-  window._debugRawText = allText;
-
   setProgress(true, 'Extracting cut data…', 90);
   const result = extractCuts(allText);
   parsedCuts = result.cuts;
@@ -575,13 +555,6 @@ function showPreview() {
       tbody.appendChild(tr);
     });
   });
-
-  // Populate debug textarea
-  const debugEl = document.getElementById('debugText');
-  if (debugEl && window._debugRawText) {
-    // Just the first 16 pages worth — trim photo section pages
-    debugEl.value = window._debugRawText.substring(0, 40000);
-  }
 
   // Transition
   document.getElementById('panel-upload').classList.add('hidden');
