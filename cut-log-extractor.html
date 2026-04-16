@@ -11,15 +11,12 @@
   :root {
     --bg: #0f1117;
     --surface: #181c26;
-    --surface2: #1f2536;
     --border: #2a3147;
     --accent: #e8a030;
     --accent2: #3d7eff;
     --text: #e2e6f0;
     --text-muted: #6b7898;
     --text-dim: #3d4a68;
-    --green: #2ecc71;
-    --red: #e74c3c;
     --mono: 'IBM Plex Mono', monospace;
     --sans: 'IBM Plex Sans', sans-serif;
   }
@@ -32,10 +29,8 @@
     font-family: var(--sans);
     font-size: 14px;
     min-height: 100vh;
-    padding: 0;
   }
 
-  /* ---- Header ---- */
   header {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
@@ -50,62 +45,25 @@
     display: flex; align-items: center; justify-content: center;
     font-family: var(--mono);
     font-size: 13px; font-weight: 600;
-    color: #000;
-    flex-shrink: 0;
+    color: #000; flex-shrink: 0;
   }
   header h1 {
     font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    color: var(--text);
+    font-size: 14px; font-weight: 500;
+    letter-spacing: 0.08em; color: var(--text);
   }
   header span {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-muted);
-    letter-spacing: 0.04em;
-    border-left: 1px solid var(--border);
-    padding-left: 16px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-muted); letter-spacing: 0.04em;
+    border-left: 1px solid var(--border); padding-left: 16px;
   }
 
-  /* ---- Layout ---- */
   .container { max-width: 1100px; margin: 0 auto; padding: 32px; }
 
-  /* ---- Step indicators ---- */
-  .steps {
-    display: flex; gap: 0; margin-bottom: 32px;
-    border: 1px solid var(--border);
-    overflow: hidden;
-  }
-  .step {
-    flex: 1; padding: 10px 16px;
-    font-family: var(--mono); font-size: 11px;
-    letter-spacing: 0.06em; text-transform: uppercase;
-    color: var(--text-dim);
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex; align-items: center; gap: 8px;
-    transition: all 0.2s;
-  }
-  .step:last-child { border-right: none; }
-  .step-num {
-    width: 18px; height: 18px; border-radius: 50%;
-    background: var(--border); color: var(--text-dim);
-    font-size: 10px; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .step.active { color: var(--accent); background: rgba(232,160,48,0.06); }
-  .step.active .step-num { background: var(--accent); color: #000; }
-  .step.done { color: var(--green); }
-  .step.done .step-num { background: var(--green); color: #000; }
-
-  /* ---- Cards ---- */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    padding: 24px;
-    margin-bottom: 20px;
+    padding: 24px; margin-bottom: 20px;
   }
   .card-title {
     font-family: var(--mono);
@@ -113,72 +71,47 @@
     color: var(--accent); margin-bottom: 16px;
   }
 
-  /* ---- Drop zone ---- */
   .drop-zone {
     border: 1px dashed var(--border);
-    padding: 48px 32px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
+    padding: 48px 32px; text-align: center;
+    cursor: pointer; transition: all 0.2s; position: relative;
   }
   .drop-zone:hover, .drop-zone.drag-over {
     border-color: var(--accent);
     background: rgba(232,160,48,0.04);
   }
   .drop-zone input[type="file"] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    position: absolute; inset: 0; opacity: 0;
+    cursor: pointer; width: 100%; height: 100%;
   }
   .drop-icon { font-size: 32px; margin-bottom: 12px; }
-  .drop-label {
-    font-family: var(--mono); font-size: 13px; color: var(--text-muted);
-    margin-bottom: 4px;
-  }
+  .drop-label { font-family: var(--mono); font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
   .drop-sub { font-size: 11px; color: var(--text-dim); }
 
-  /* ---- Progress bar ---- */
   .progress-wrap { margin-top: 16px; display: none; }
   .progress-label { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
   .progress-bar { height: 2px; background: var(--border); }
   .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
 
-  /* ---- Sheet name input ---- */
-  .input-row { display: flex; gap: 12px; align-items: flex-end; }
-  .field { flex: 1; }
-  .field label {
-    display: block; font-family: var(--mono); font-size: 10px;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--text-muted); margin-bottom: 6px;
-  }
-  .field input {
-    width: 100%; background: var(--bg); border: 1px solid var(--border);
-    color: var(--text); font-family: var(--mono); font-size: 13px;
-    padding: 10px 12px; outline: none; transition: border-color 0.2s;
-  }
-  .field input:focus { border-color: var(--accent); }
-  .field input::placeholder { color: var(--text-dim); }
-
-  /* ---- Buttons ---- */
   .btn {
     padding: 10px 20px; border: none; cursor: pointer;
     font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em;
     text-transform: uppercase; transition: all 0.15s; white-space: nowrap;
   }
-  .btn-primary { background: var(--accent); color: #000; font-weight: 600; }
-  .btn-primary:hover { background: #f0b040; }
-  .btn-primary:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
   .btn-secondary { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
   .btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
 
-  /* ---- Preview table ---- */
-  .preview-meta {
-    display: flex; gap: 24px; margin-bottom: 20px; flex-wrap: wrap;
-  }
+  .preview-meta { display: flex; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
   .meta-item { display: flex; flex-direction: column; gap: 2px; }
   .meta-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
   .meta-value { font-family: var(--mono); font-size: 13px; color: var(--text); }
 
-  .preview-scroll { overflow-x: auto; max-height: 420px; overflow-y: auto; }
+  .summary-bar { display: flex; gap: 20px; padding: 12px 0; flex-wrap: wrap; }
+  .stat { display: flex; align-items: center; gap: 8px; }
+  .stat-num { font-family: var(--mono); font-size: 20px; font-weight: 600; color: var(--accent); }
+  .stat-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); }
+
+  .preview-scroll { overflow-x: auto; max-height: 600px; overflow-y: auto; }
   table { width: 100%; border-collapse: collapse; }
   thead th {
     background: var(--bg); position: sticky; top: 0; z-index: 1;
@@ -189,10 +122,7 @@
   tbody tr { border-bottom: 1px solid rgba(42,49,71,0.5); transition: background 0.1s; }
   tbody tr:hover { background: rgba(255,255,255,0.02); }
   tbody tr.parent-row td { background: rgba(232,160,48,0.06); }
-  tbody tr.parent-row td:first-child { color: var(--accent); font-weight: 500; }
-  td {
-    padding: 7px 12px; font-family: var(--mono); font-size: 12px; color: var(--text-muted);
-  }
+  td { padding: 7px 12px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
   td.indent { padding-left: 28px; color: var(--text-dim); }
   td.field-name { color: var(--text-muted); font-size: 11px; }
   td.field-value { color: var(--text); }
@@ -200,49 +130,13 @@
   .badge {
     display: inline-block; padding: 1px 7px;
     font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em;
-    background: rgba(61,126,255,0.15); color: var(--accent2);
-    border: 1px solid rgba(61,126,255,0.25);
-  }
-  .badge-warn {
     background: rgba(232,160,48,0.12); color: var(--accent);
-    border-color: rgba(232,160,48,0.25);
+    border: 1px solid rgba(232,160,48,0.25);
   }
 
-  /* ---- Status / log ---- */
-  .log-area {
-    background: var(--bg); border: 1px solid var(--border);
-    padding: 16px; font-family: var(--mono); font-size: 12px;
-    color: var(--text-muted); min-height: 60px; max-height: 160px;
-    overflow-y: auto; line-height: 1.7;
-  }
-  .log-line { display: flex; gap: 12px; }
-  .log-ts { color: var(--text-dim); flex-shrink: 0; }
-  .log-ok { color: var(--green); }
-  .log-err { color: var(--red); }
-  .log-info { color: var(--accent2); }
-
-  /* ---- Success banner ---- */
-  .success-banner {
-    background: rgba(46,204,113,0.08); border: 1px solid rgba(46,204,113,0.25);
-    padding: 16px 20px; display: flex; align-items: center; gap: 12px;
-    margin-top: 16px; display: none;
-  }
-  .success-banner a { color: var(--green); font-family: var(--mono); font-size: 12px; text-decoration: underline; }
-
-  /* ---- Divider ---- */
-  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
-
-  /* ---- Summary bar ---- */
-  .summary-bar {
-    display: flex; gap: 20px; padding: 12px 0; flex-wrap: wrap;
-  }
-  .stat { display: flex; align-items: center; gap: 8px; }
-  .stat-num { font-family: var(--mono); font-size: 20px; font-weight: 600; color: var(--accent); }
-  .stat-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); }
+  .action-row { display: flex; justify-content: flex-end; padding-top: 8px; }
 
   .hidden { display: none !important; }
-  .spin { animation: spin 1s linear infinite; display: inline-block; }
-  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -250,19 +144,12 @@
 <header>
   <div class="logo-mark">CI</div>
   <h1>CUT LOG EXTRACTOR</h1>
-  <span>NorCal Inspection · Smartsheet Push Tool</span>
+  <span>NorCal Inspection · PDF Extraction Tool</span>
 </header>
 
 <div class="container">
 
-  <!-- Steps -->
-  <div class="steps">
-    <div class="step active" id="step1"><div class="step-num">1</div> Upload IR</div>
-    <div class="step" id="step2"><div class="step-num">2</div> Review Cuts</div>
-    <div class="step" id="step3"><div class="step-num">3</div> Push to Smartsheet</div>
-  </div>
-
-  <!-- Step 1: Upload -->
+  <!-- Upload panel -->
   <div id="panel-upload">
     <div class="card">
       <div class="card-title">// Upload Inspection Report (PDF)</div>
@@ -279,8 +166,8 @@
     </div>
   </div>
 
-  <!-- Step 2: Preview -->
-  <div id="panel-preview" class="hidden">
+  <!-- Results panel -->
+  <div id="panel-results" class="hidden">
     <div class="card">
       <div class="card-title">// Extraction Summary</div>
       <div class="preview-meta">
@@ -308,12 +195,13 @@
     </div>
 
     <div class="card">
-      <div class="card-title">// Cut Data Preview — Sorted by Assembly → ID Code</div>
+      <div class="card-title">// Cut Data — Sorted by Assembly Location → Identification Code</div>
       <div class="preview-scroll">
-        <table id="previewTable">
+        <table>
           <thead>
             <tr>
               <th>Cut #</th>
+              <th>Identification Code</th>
               <th>Field</th>
               <th>Value</th>
               <th>Assembly Location</th>
@@ -322,35 +210,8 @@
           <tbody id="previewBody"></tbody>
         </table>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">// Sheet Settings</div>
-      <div class="input-row">
-        <div class="field">
-          <label>Sheet Name</label>
-          <input type="text" id="sheetName" placeholder="e.g. IR 5710 – Cut Log – Feb 12 2026">
-        </div>
-        <button class="btn btn-primary" id="btnPush">Push to Smartsheet ↗</button>
-        <button class="btn btn-secondary" id="btnReset">↺ New IR</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Step 3: Push status -->
-  <div id="panel-push" class="hidden">
-    <div class="card">
-      <div class="card-title">// Push Log</div>
-      <div class="log-area" id="logArea"></div>
-      <div class="success-banner" id="successBanner">
-        <span style="font-size:20px">✓</span>
-        <div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--green);margin-bottom:4px;">Sheet created in Cut Logs workspace</div>
-          <a id="sheetLink" href="#" target="_blank">Open in Smartsheet ↗</a>
-        </div>
-      </div>
-      <div style="margin-top:16px;display:flex;gap:10px;">
-        <button class="btn btn-secondary hidden" id="btnAnother" onclick="location.reload()">↺ Process Another IR</button>
+      <div class="action-row">
+        <button class="btn btn-secondary" onclick="location.reload()">↺ New IR</button>
       </div>
     </div>
   </div>
@@ -358,14 +219,8 @@
 </div>
 
 <script>
-// ---- PDF.js config ----
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// ---- HARDCODED CONFIG ----
-const PROXY_URL = 'https://smartsheet-proxy.rebecca-91f.workers.dev';
-const WORKSPACE_ID = 4330030638622596;
-
-// ---- State ----
 let parsedCuts = [];
 let irMeta = {};
 
@@ -409,17 +264,13 @@ async function handleFile(file) {
   parsedCuts = result.cuts;
   irMeta = result.meta;
   setProgress(true, 'Done', 100);
-  setTimeout(() => {
-    setProgress(false);
-    showPreview();
-  }, 400);
+  setTimeout(() => { setProgress(false); showResults(); }, 400);
 }
 
-// ---- Extract cuts from raw text ----
+// ---- Extract cuts ----
 function extractCuts(rawText) {
   const meta = {};
 
-  // Extract meta from the raw text before stripping
   const irMatch = rawText.match(/Inspection Request\s*no\.?\s*[:\.]?\s*(\d+)/i);
   if (irMatch) meta.ir = irMatch[1];
   const dfrMatch = rawText.match(/DFR\s*ID\s*[:\.]?\s*(\d+)/i);
@@ -429,21 +280,13 @@ function extractCuts(rawText) {
   const projMatch = rawText.match(/Project Name\s*[:\.]?\s*([^\n]{10,80})/i);
   if (projMatch) meta.project = projMatch[1].trim().substring(0, 60);
 
-  // ---- Strip repeating page headers and footers so cross-page cuts merge cleanly ----
-  // Header: "TESTING\nINSPECTION\nENGINEERING\n..." up through "Inspection Request no. : NNNN"
+  // Strip repeating page headers and footers so cross-page cuts merge cleanly
   let text = rawText.replace(
     /TESTING\s*\nINSPECTION\s*\nENGINEERING\s*\n[\s\S]*?Inspection Request\s*no\.?\s*[:\.]?\s*\d+\s*\n/gi,
     '\n'
   );
-  // Footer address block
-  text = text.replace(
-    /2118 Rheem Drive[\s\S]*?Fax \(510\) 835-1825\s*\n/g,
-    '\n'
-  );
-  // Strip PDF.js page separator if present
-  text = text.replace(/---PAGE---/g, '\n');
+  text = text.replace(/2118 Rheem Drive[\s\S]*?Fax \(510\) 835-1825\s*\n/g, '\n');
 
-  // ---- Find all "Cut N\n...fields...Cut N+1" blocks ----
   const cutRegex = /\bCut\s+(\d+)\s*\n([\s\S]*?)(?=\bCut\s+\d+\s*\n|\n6\.\s|\Z)/g;
   const cuts = [];
   let match;
@@ -452,58 +295,60 @@ function extractCuts(rawText) {
     const cutNum = parseInt(match[1]);
     const block = match[2];
 
-    // Helper — extract value after a label on the same line
     const field = (regex) => {
       const m = block.match(regex);
       if (!m) return null;
-      // Strip bullet char and whitespace
       return m[1].replace(/^[•\s\-–]+/, '').trim().split('\n')[0].trim();
     };
 
     const cut = {
       cutNum,
-      identificationCode:     field(/Identification\s*Code\s*:\s*([^\n]+)/i),
-      heatNumber:             field(/Heat\s*Number\s*:\s*([^\n]+)/i),
-      plateNumber:            field(/Plate\s*Number\s*:\s*([^\n]+)/i),
-      dimensions:             field(/Dimensions\s*:\s*([^\n]+)/i),
-      astmMaterial:           field(/ASTM\s*Material\s*:\s*([^\n]+)/i),
-      quantity:               field(/Quantity\s*:\s*([^\n]+)/i),
-      finalAssemblyLocation:  field(/Final\s*Assembly\s*Location\s*:\s*([^\n]+)/i),
-      specialTesting:         field(/Special\s*Testing\s*:\s*([^\n]+)/i),
+      identificationCode:    field(/Identification\s*Code\s*:\s*([^\n]+)/i),
+      heatNumber:            field(/Heat\s*Number\s*:\s*([^\n]+)/i),
+      plateNumber:           field(/Plate\s*Number\s*:\s*([^\n]+)/i),
+      dimensions:            field(/Dimensions\s*:\s*([^\n]+)/i),
+      astmMaterial:          field(/ASTM\s*Material\s*:\s*([^\n]+)/i),
+      quantity:              field(/Quantity\s*:\s*([^\n]+)/i),
+      finalAssemblyLocation: field(/Final\s*Assembly\s*Location\s*:\s*([^\n]+)/i),
+      specialTesting:        field(/Special\s*Testing\s*:\s*([^\n]+)/i),
     };
 
-    // Only keep cuts that have at least an ID code or heat number
     if (cut.identificationCode || cut.heatNumber) {
       cuts.push(cut);
     }
   }
 
-  // ---- Sort: Assembly Location ASC (numeric), then ID Code DESC ----
+  // Sort: Assembly Location ASC then ID Code ASC — both using alphanumeric sort
+  // Pure numeric (no prefix) sorts before alpha-prefixed; within same prefix, numeric portion ASC
   cuts.sort((a, b) => {
-    const locA = sortKeyLoc(a.finalAssemblyLocation);
-    const locB = sortKeyLoc(b.finalAssemblyLocation);
-    if (locA !== locB) return locA - locB;
-    return sortKeyId(b.identificationCode) - sortKeyId(a.identificationCode);
+    const locCmp = alphaNumSort(a.finalAssemblyLocation, b.finalAssemblyLocation);
+    if (locCmp !== 0) return locCmp;
+    return alphaNumSort(a.identificationCode, b.identificationCode);
   });
 
   return { cuts, meta };
 }
 
-function sortKeyLoc(loc) {
-  if (!loc) return 9999;
-  const m = loc.match(/(\d+)/);
-  return m ? parseInt(m[1]) : 9999;
+// Alphanumeric sort: splits value into alpha prefix + numeric portion
+// No prefix sorts before any prefix; within same prefix, numeric ASC
+function alphaNumSort(a, b) {
+  const parse = (val) => {
+    if (!val) return { prefix: '\uFFFF', num: 0 };
+    const m = val.match(/^([A-Za-z]*)(\d+)/);
+    if (!m) return { prefix: val, num: 0 };
+    return { prefix: m[1].toUpperCase(), num: parseInt(m[2]) };
+  };
+  const pa = parse(a);
+  const pb = parse(b);
+  // Empty prefix (pure numeric) sorts before any alpha prefix
+  if (pa.prefix === '' && pb.prefix !== '') return -1;
+  if (pa.prefix !== '' && pb.prefix === '') return 1;
+  if (pa.prefix !== pb.prefix) return pa.prefix < pb.prefix ? -1 : 1;
+  return pa.num - pb.num;
 }
 
-function sortKeyId(id) {
-  if (!id) return 0;
-  const m = id.match(/(\d+)/);
-  return m ? parseInt(m[1]) : 0;
-}
-
-// ---- Show preview ----
-function showPreview() {
-  // Meta
+// ---- Render results ----
+function showResults() {
   document.getElementById('metaIR').textContent = irMeta.ir || '—';
   document.getElementById('metaProject').textContent = irMeta.project || '—';
   document.getElementById('metaDate').textContent = irMeta.date || '—';
@@ -511,15 +356,6 @@ function showPreview() {
   document.getElementById('statCuts').textContent = parsedCuts.length;
   const assemblies = new Set(parsedCuts.map(c => c.finalAssemblyLocation).filter(Boolean));
   document.getElementById('statGroups').textContent = assemblies.size;
-
-  // Default sheet name
-  const irNum = irMeta.ir || 'Unknown';
-  const date = irMeta.date ? irMeta.date.replace(/,\s*/g, ' ').replace(/\s+/g, ' ') : new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-  document.getElementById('sheetName').value = `IR ${irNum} – Cut Log – ${date}`;
-
-  // Table
-  const tbody = document.getElementById('previewBody');
-  tbody.innerHTML = '';
 
   const FIELDS = [
     { key: 'heatNumber',           label: 'Heat Number' },
@@ -531,13 +367,16 @@ function showPreview() {
     { key: 'specialTesting',       label: 'Special Testing' },
   ];
 
+  const tbody = document.getElementById('previewBody');
+  tbody.innerHTML = '';
+
   parsedCuts.forEach(cut => {
     // Parent row
     const parentTr = document.createElement('tr');
     parentTr.className = 'parent-row';
     parentTr.innerHTML = `
-      <td><span class="badge badge-warn">Cut ${cut.cutNum}</span></td>
-      <td style="color:var(--accent);font-weight:500;">${cut.identificationCode || '—'}</td>
+      <td><span class="badge">Cut ${cut.cutNum}</span></td>
+      <td style="color:var(--accent);font-weight:500;" colspan="2">${cut.identificationCode || '—'}</td>
       <td></td>
       <td>${cut.finalAssemblyLocation || '—'}</td>`;
     tbody.appendChild(parentTr);
@@ -545,10 +384,11 @@ function showPreview() {
     // Child rows
     FIELDS.forEach(f => {
       const val = cut[f.key];
-      if (!val && f.key !== 'specialTesting') return; // skip empty (except testing)
+      if (!val && f.key !== 'specialTesting') return;
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="indent" style="color:var(--text-dim);font-size:10px;"></td>
+        <td class="indent"></td>
+        <td></td>
         <td class="field-name indent">${f.label}</td>
         <td class="field-value">${val || '<span style="color:var(--text-dim)">N/A</span>'}</td>
         <td></td>`;
@@ -556,162 +396,15 @@ function showPreview() {
     });
   });
 
-  // Transition
   document.getElementById('panel-upload').classList.add('hidden');
-  document.getElementById('panel-preview').classList.remove('hidden');
-  setStep(2);
+  document.getElementById('panel-results').classList.remove('hidden');
 }
 
-// ---- Push to Smartsheet ----
-document.getElementById('btnPush').addEventListener('click', pushToSmartsheet);
-document.getElementById('btnReset').addEventListener('click', () => location.reload());
-
-async function pushToSmartsheet() {
-  const sheetName = document.getElementById('sheetName').value.trim();
-  if (!sheetName) { alert('Please enter a sheet name.'); return; }
-  if (parsedCuts.length === 0) { alert('No cuts to push.'); return; }
-
-  document.getElementById('panel-preview').classList.add('hidden');
-  document.getElementById('panel-push').classList.remove('hidden');
-  setStep(3);
-
-  const log = (msg, cls='') => {
-    const el = document.getElementById('logArea');
-    const ts = new Date().toLocaleTimeString('en-US', {hour12:false});
-    el.innerHTML += `<div class="log-line"><span class="log-ts">[${ts}]</span><span class="${cls}">${msg}</span></div>`;
-    el.scrollTop = el.scrollHeight;
-  };
-
-  try {
-    log('Creating sheet in Cut Logs workspace…', 'log-info');
-
-    // Define columns
-    const columns = [
-      { title: 'Label', type: 'TEXT_NUMBER', primary: true, width: 260 },
-      { title: 'Value', type: 'TEXT_NUMBER', width: 360 },
-      { title: 'Cut #', type: 'TEXT_NUMBER', width: 80 },
-      { title: 'Final Assembly Location', type: 'TEXT_NUMBER', width: 180 },
-    ];
-
-    const createRes = await apiCall('POST', `/workspaces/${WORKSPACE_ID}/sheets`, {
-      name: sheetName,
-      columns
-    });
-
-    if (!createRes.result?.id) throw new Error('Sheet creation failed: ' + JSON.stringify(createRes));
-    const sheetId = createRes.result.id;
-    const permalink = createRes.result.permalink;
-    const colMap = {};
-    createRes.result.columns.forEach(c => { colMap[c.title] = c.id; });
-
-    log(`Sheet created (ID: ${sheetId})`, 'log-ok');
-    log(`Building ${parsedCuts.length} cut entries…`, 'log-info');
-
-    // Build rows — parent + children, in sorted order
-    // We push in batches to stay under 500-row limit
-    const FIELDS = [
-      { key: 'heatNumber',            label: 'Heat Number' },
-      { key: 'plateNumber',           label: 'Plate Number' },
-      { key: 'dimensions',            label: 'Dimensions' },
-      { key: 'astmMaterial',          label: 'ASTM Material' },
-      { key: 'quantity',              label: 'Quantity' },
-      { key: 'finalAssemblyLocation', label: 'Final Assembly Location' },
-      { key: 'specialTesting',        label: 'Special Testing' },
-    ];
-
-    // First pass: add all parent rows to get their IDs
-    const parentRowDefs = parsedCuts.map(cut => ({
-      toBottom: true,
-      cells: [
-        { columnId: colMap['Label'], value: cut.identificationCode || `Cut ${cut.cutNum}` },
-        { columnId: colMap['Value'], value: '' },
-        { columnId: colMap['Cut #'], value: `Cut ${cut.cutNum}` },
-        { columnId: colMap['Final Assembly Location'], value: cut.finalAssemblyLocation || '' },
-      ]
-    }));
-
-    // Batch add parents
-    const BATCH = 100;
-    const parentIds = [];
-    for (let i = 0; i < parentRowDefs.length; i += BATCH) {
-      const batch = parentRowDefs.slice(i, i + BATCH);
-      const res = await apiCall('POST', `/sheets/${sheetId}/rows`, batch);
-      if (!res.result) throw new Error('Row add failed: ' + JSON.stringify(res));
-      res.result.forEach(r => parentIds.push(r.id));
-      log(`Added parent rows ${i+1}–${Math.min(i+BATCH, parentRowDefs.length)}`, 'log-ok');
-    }
-
-    // Second pass: add child rows under each parent
-    log('Adding child field rows…', 'log-info');
-    let childBatch = [];
-
-    parsedCuts.forEach((cut, idx) => {
-      const parentId = parentIds[idx];
-      FIELDS.forEach(f => {
-        childBatch.push({
-          parentId,
-          toBottom: true,
-          cells: [
-            { columnId: colMap['Label'], value: f.label },
-            { columnId: colMap['Value'], value: cut[f.key] || '' },
-            { columnId: colMap['Cut #'], value: `Cut ${cut.cutNum}` },
-            { columnId: colMap['Final Assembly Location'], value: cut.finalAssemblyLocation || '' },
-          ]
-        });
-      });
-    });
-
-    // Push children in batches
-    for (let i = 0; i < childBatch.length; i += BATCH) {
-      const batch = childBatch.slice(i, i + BATCH);
-      const res = await apiCall('POST', `/sheets/${sheetId}/rows`, batch);
-      if (!res.result) throw new Error('Child row add failed: ' + JSON.stringify(res));
-      log(`Added child rows ${i+1}–${Math.min(i+BATCH, childBatch.length)} of ${childBatch.length}`, 'log-ok');
-    }
-
-    log(`✓ All done — ${parsedCuts.length} cuts pushed successfully`, 'log-ok');
-
-    const banner = document.getElementById('successBanner');
-    banner.style.display = 'flex';
-    document.getElementById('sheetLink').href = permalink;
-    document.getElementById('btnAnother').classList.remove('hidden');
-
-  } catch (err) {
-    log('ERROR: ' + err.message, 'log-err');
-    console.error(err);
-  }
-}
-
-// ---- API helper ----
-async function apiCall(method, path, body) {
-  const res = await fetch(`${PROXY_URL}${path}`, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const rawText = await res.text();
-  try {
-    return JSON.parse(rawText);
-  } catch(e) {
-    throw new Error(`Proxy returned non-JSON (status ${res.status}): ${rawText.substring(0, 300)}`);
-  }
-}
-
-// ---- UI helpers ----
 function setProgress(show, label, pct) {
   const wrap = document.getElementById('progressWrap');
   wrap.style.display = show ? 'block' : 'none';
   document.getElementById('progressLabel').textContent = label || '';
   document.getElementById('progressFill').style.width = (pct || 0) + '%';
-}
-
-function setStep(n) {
-  ['step1','step2','step3'].forEach((id, i) => {
-    const el = document.getElementById(id);
-    el.classList.remove('active','done');
-    if (i + 1 < n) el.classList.add('done');
-    else if (i + 1 === n) el.classList.add('active');
-  });
 }
 </script>
 </body>
