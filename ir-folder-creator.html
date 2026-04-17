@@ -203,13 +203,10 @@ let stats = { created: 0, skipped: 0, errors: 0 };
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 function startAuth() {
-  const state = Math.random().toString(36).slice(2);
-  sessionStorage.setItem('dbx_state', state);
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     response_type: 'token',
     redirect_uri: REDIRECT_URI,
-    state,
     scope: 'files.metadata.read files.content.write'
   });
   location.href = 'https://www.dropbox.com/oauth2/authorize?' + params;
@@ -220,13 +217,7 @@ function handleOAuthCallback() {
   if (!hash) return;
   const params = new URLSearchParams(hash);
   const token = params.get('access_token');
-  const state = params.get('state');
   if (!token) return;
-  if (state !== sessionStorage.getItem('dbx_state')) {
-    log('OAuth state mismatch — please try connecting again.', 'error');
-    return;
-  }
-  sessionStorage.removeItem('dbx_state');
   // Clean URL
   history.replaceState(null, '', location.pathname);
   setToken(token);
