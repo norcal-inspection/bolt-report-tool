@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member Check List Extractor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  :root {
+    --bg:#0f0f0f; --surface:#1a1a1a; --surface2:#242424; --border:#333;
+    --accent:#e8c547; --accent2:#4ab7e8; --green:#4ae87a; --red:#e84a4a;
+    --orange:#e8944a; --text:#e8e8e8; --text-dim:#888;
+    --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding:32px 24px;max-width:1100px;margin:0 auto;}
+  .header{display:flex;align-items:flex-start;gap:20px;margin-bottom:36px;border-bottom:1px solid var(--border);padding-bottom:28px;}
+  .header-icon{width:48px;height:48px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;margin-top:2px;}
+  .header-text h1{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--accent);letter-spacing:-0.5px;}
+  .header-text p{color:var(--text-dim);font-size:13px;margin-top:4px;line-height:1.5;}
+  .instructions{background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.2);border-radius:6px;padding:14px 16px;margin-bottom:20px;font-size:12px;color:#bbb;line-height:1.7;}
+  .instructions strong{color:var(--accent);}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:20px;}
+  .panel h2{font-family:var(--mono);font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;}
+  .btn{padding:11px 22px;border:none;border-radius:5px;font-family:var(--mono);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:8px;}
+  .btn-primary{background:var(--accent);color:#000;}
+  .btn-primary:hover{background:#f0d060;transform:translateY(-1px);}
+  .btn-primary:active{transform:translateY(0);}
+  .btn-primary:disabled{background:#444;color:#666;cursor:not-allowed;transform:none;}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-secondary:hover{border-color:var(--accent);color:var(--accent);}
+  .btn-danger{background:rgba(232,74,74,0.15);color:var(--red);border:1px solid rgba(232,74,74,0.3);}
+  .btn-danger:hover{background:rgba(232,74,74,0.25);}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .drop-zone{border:2px dashed var(--border);border-radius:8px;padding:40px 24px;text-align:center;cursor:pointer;transition:all 0.2s;position:relative;background:var(--surface);margin-bottom:14px;}
+  .drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(232,197,71,0.04);}
+  .drop-zone.has-file{border-color:rgba(74,232,122,0.4);background:rgba(74,232,122,0.04);}
+  .drop-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .drop-icon{font-size:36px;margin-bottom:12px;display:block;}
+  .drop-zone h3{font-size:15px;font-weight:500;margin-bottom:6px;}
+  .drop-zone p{font-size:13px;color:var(--text-dim);}
+
+  .file-list-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:14px;display:none;}
+  .file-list-wrap.visible{display:block;}
+  .file-list-header{padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;}
+  .file-list{max-height:200px;overflow-y:auto;}
+  .file-item{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(51,51,51,0.5);font-family:var(--mono);font-size:12px;}
+  .file-item:last-child{border-bottom:none;}
+  .file-item .fi-icon{flex-shrink:0;color:var(--text-dim);}
+  .file-item .fi-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .file-item .fi-status{flex-shrink:0;font-size:11px;color:var(--text-dim);}
+  .file-item.ok .fi-status{color:var(--green);}
+  .file-item.err .fi-status{color:var(--red);}
+  .file-item.pending .fi-status{color:var(--orange);}
+
+  .log-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;display:none;margin-bottom:20px;}
+  .log-panel.visible{display:block;}
+  .log-header{padding:10px 14px;background:var(--surface2);font-family:var(--mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;}
+  .log-body{padding:14px;font-family:var(--mono);font-size:12px;line-height:1.8;max-height:280px;overflow-y:auto;}
+  .log-line{display:flex;gap:10px;}
+  .log-time{color:#555;flex-shrink:0;}
+  .log-info{color:var(--text-dim);}
+  .log-success{color:var(--green);}
+  .log-error{color:var(--red);}
+  .log-warn{color:var(--orange);}
+
+  .summary-bar{display:none;gap:16px;margin-bottom:20px;}
+  .summary-bar.visible{display:flex;}
+  .stat-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 16px;}
+  .stat-box .stat-val{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--accent);line-height:1;margin-bottom:4px;}
+  .stat-box .stat-label{font-size:11px;color:var(--text-dim);font-family:var(--mono);}
+  .stat-box.green .stat-val{color:var(--green);}
+  .stat-box.orange .stat-val{color:var(--orange);}
+  .stat-box.red .stat-val{color:var(--red);}
+
+  .records-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px;display:none;}
+  .records-panel.visible{display:block;}
+  .records-header{padding:12px 16px;background:var(--surface2);font-family:var(--mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+  .group{border-bottom:1px solid var(--border);}
+  .group:last-child{border-bottom:none;}
+  .group-header{padding:12px 16px;background:rgba(232,197,71,0.04);cursor:pointer;display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;transition:background 0.15s;}
+  .group-header:hover{background:rgba(232,197,71,0.08);}
+  .group-header .gh-caret{color:var(--text-dim);transition:transform 0.15s;font-size:10px;flex-shrink:0;}
+  .group-header.collapsed .gh-caret{transform:rotate(-90deg);}
+  .group-header .gh-title{flex:1;color:var(--accent);font-weight:500;}
+  .group-header .gh-count{color:var(--text-dim);font-size:11px;}
+  .group-body{display:block;overflow-x:auto;}
+  .group-body.collapsed{display:none;}
+  table.records{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;}
+  table.records th{background:var(--surface2);color:var(--text-dim);text-align:left;padding:8px 10px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  table.records td{padding:6px 10px;border-bottom:1px solid rgba(51,51,51,0.5);vertical-align:top;color:var(--text);}
+  table.records tr:last-child td{border-bottom:none;}
+  table.records tr:hover td{background:rgba(232,197,71,0.03);}
+  table.records .c-idx{color:var(--text-dim);width:32px;}
+  table.records .c-empty{color:#555;font-style:italic;}
+
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.6s linear infinite;display:inline-block;}
+  .hidden{display:none;}
+  .future-note{margin-top:16px;padding:10px 14px;background:rgba(74,183,232,0.05);border:1px solid rgba(74,183,232,0.15);border-radius:5px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.6;}
+  .future-note strong{color:var(--accent2);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">&#x1F4CB;</div>
+  <div class="header-text">
+    <h1>Member Check List Extractor</h1>
+    <p>Upload CTS Inspection Report PDFs and extract their Member Check List records.</p>
+  </div>
+</div>
+
+<div class="instructions">
+  <strong>How to use:</strong> Drop a folder of IR PDFs (or individual files) into the upload zone, then click <strong>Parse PDFs</strong>. Records are grouped by IR#, date, and inspector for review. Smartsheet push will be added in a future update.
+</div>
+
+<div class="panel">
+  <h2>Step 1 &mdash; Upload PDFs</h2>
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" multiple accept=".pdf" webkitdirectory directory>
+    <span class="drop-icon">&#x1F4C1;</span>
+    <h3 id="dropTitle">Drop a folder or files here, or click to browse</h3>
+    <p id="dropSub">Selects a whole folder by default &mdash; or use the button below for individual files</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="pickFilesBtn" onclick="pickFiles()">Pick individual PDFs</button>
+    <button class="btn btn-danger hidden" id="clearBtn" onclick="clearFiles()">Clear</button>
+  </div>
+  <div class="file-list-wrap" id="fileListWrap">
+    <div class="file-list-header">
+      <span>Queued files</span>
+      <span id="fileCount" style="color:var(--text-dim);"></span>
+    </div>
+    <div class="file-list" id="fileList"></div>
+  </div>
+</div>
+
+<div class="btn-row" style="margin-bottom:20px;">
+  <button class="btn btn-primary" id="parseBtn" onclick="parseAll()" disabled>Parse PDFs</button>
+</div>
+
+<div class="summary-bar" id="summaryBar">
+  <div class="stat-box"><div class="stat-val" id="statFiles">0</div><div class="stat-label">Files parsed</div></div>
+  <div class="stat-box green"><div class="stat-val" id="statRecords">0</div><div class="stat-label">Records extracted</div></div>
+  <div class="stat-box orange"><div class="stat-val" id="statWarnings">0</div><div class="stat-label">Warnings</div></div>
+  <div class="stat-box red"><div class="stat-val" id="statErrors">0</div><div class="stat-label">Errors</div></div>
+</div>
+
+<div class="log-panel" id="logPanel">
+  <div class="log-header">
+    <span>Activity Log</span>
+    <span id="logCount" style="color:var(--text-dim);"></span>
+  </div>
+  <div class="log-body" id="logBody"></div>
+</div>
+
+<div class="records-panel" id="recordsPanel">
+  <div class="records-header">
+    <span>Extracted Records</span>
+    <span id="recordsTotal" style="color:var(--text-dim);"></span>
+  </div>
+  <div id="groupsContainer"></div>
+</div>
+
+<div class="future-note" id="futureNote" style="display:none;">
+  <strong>Next up:</strong> pushing approved records to Smartsheet, with review for suspected duplicates and Shadow-List cross-referencing. This build verifies parsing only.
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ─────────────────────────────────────────────────────────────
+//  CONSTANTS (ported from the Python tool)
+// ─────────────────────────────────────────────────────────────
+var LOCATION_MAP = [
+  ["Carretera a La Capilla",  "GDL", "GUADALAJARA"],
+  ["San Jose del Castillo",   "GDL", "GUADALAJARA"],
+  ["45685",                   "GDL", "GUADALAJARA"],
+  ["Guadalajara",             "GDL", "GUADALAJARA"],
+  ["2001 N Davis",            "OTT", "OTTAWA"],
+  ["Ottawa, KS",              "OTT", "OTTAWA"],
+  ["Ottawa,KS",               "OTT", "OTTAWA"],
+  ["66067",                   "OTT", "OTTAWA"],
+  ["325 S Geneva",            "SLC", "LINDON"],
+  ["Lindon, UT",              "SLC", "LINDON"],
+  ["Lindon,UT",               "SLC", "LINDON"],
+  ["84042",                   "SLC", "LINDON"],
+  ["2324 Navy Dr",            "STK", "STOCKTON"],
+  ["Stockton, CA",            "STK", "STOCKTON"],
+  ["Stockton,CA",             "STK", "STOCKTON"],
+  ["95206",                   "STK", "STOCKTON"],
+  ["1705 West Battaglia",     "ELY", "ELOY"],
+  ["Eloy, AZ",                "ELY", "ELOY"],
+  ["Eloy,AZ",                 "ELY", "ELOY"],
+  ["85131",                   "ELY", "ELOY"],
+  ["420 S 19th",              "PHX", "PHOENIX"],
+  ["Phoenix, AZ",             "PHX", "PHOENIX"],
+  ["Phoenix,AZ",              "PHX", "PHOENIX"],
+  ["85009",                   "PHX", "PHOENIX"],
+];
+var CODE_TO_LABEL = {
+  GDL: "GUADALAJARA", OTT: "OTTAWA", SLC: "LINDON",
+  STK: "STOCKTON",    ELY: "ELOY",   PHX: "PHOENIX",
+};
+var NOISE_RE = /\s+(Weather|DFR\s*ID|Time\s+In|Time\s+Out|Break|Wind\s+Speed|Temperature|HCAI#?|Inspection\s+Type|Inspection\s+Request\s+no|TIO\s+Index|Pg\.|$)/i;
+
+var FIELD_PATTERNS = [
+  { field: "member_id",        re: /member\s*id/i },
+  { field: "member_desc",      re: /(?:member\s+)?description/i },
+  { field: "weld_types",       re: /weld\s*type/i },
+  { field: "acc_rej",          re: /acc\s*[\/\-]?\s*rej/i },
+  { field: "inspection_types", re: /inspection\s*type/i },
+  { field: "member_size",      re: /member\s*size/i },
+  { field: "heat_no",          re: /heat\s*no/i },
+  { field: "qty",              re: /\bqty\b/i },
+  { field: "remarks",          re: /remark/i },
+  { field: "final_acc_date",   re: /final\s*acc/i },
+];
+
+var DISPLAY_COLS = [
+  "member_id","member_desc","weld_types","acc_rej","inspection_types",
+  "member_size","heat_no","remarks","final_acc_date",
+];
+
+var MONTH_NAMES = {
+  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+  jan: 1, feb: 2, mar: 3, apr: 4, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9,
+  oct: 10, nov: 11, dec: 12,
+};
+
+// ─────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────
+var queuedFiles = [];    // [{ file, name, status }]
+var allRecords  = [];    // flattened list of extracted records
+var stats       = { files: 0, records: 0, warnings: 0, errors: 0 };
+
+// ─────────────────────────────────────────────────────────────
+//  FILE INTAKE
+// ─────────────────────────────────────────────────────────────
+var dropZone = document.getElementById('dropZone');
+var fileInput = document.getElementById('fileInput');
+
+fileInput.addEventListener('change', function(e) {
+  addFiles(Array.from(e.target.files));
+  // Reset value so selecting the same folder/file again re-fires the event.
+  fileInput.value = '';
+});
+dropZone.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  dropZone.classList.add('drag-over');
+});
+dropZone.addEventListener('dragleave', function() {
+  dropZone.classList.remove('drag-over');
+});
+dropZone.addEventListener('drop', async function(e) {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  var items = e.dataTransfer.items;
+  var files = [];
+  if (items && items.length && items[0].webkitGetAsEntry) {
+    // Directory-aware drop: recurse into folders.
+    for (var i = 0; i < items.length; i++) {
+      var entry = items[i].webkitGetAsEntry();
+      if (entry) await walkEntry(entry, files);
+    }
+  } else {
+    files = Array.from(e.dataTransfer.files);
+  }
+  addFiles(files);
+});
+
+function pickFiles() {
+  // Temporarily swap out the webkitdirectory attr so the picker
+  // returns individual files instead of forcing a folder.
+  fileInput.removeAttribute('webkitdirectory');
+  fileInput.removeAttribute('directory');
+  fileInput.click();
+  setTimeout(function() {
+    fileInput.setAttribute('webkitdirectory', '');
+    fileInput.setAttribute('directory', '');
+  }, 500);
+}
+
+async function walkEntry(entry, out) {
+  if (entry.isFile) {
+    return new Promise(function(resolve) {
+      entry.file(function(f) { out.push(f); resolve(); }, resolve);
+    });
+  }
+  if (entry.isDirectory) {
+    var reader = entry.createReader();
+    var entries = await new Promise(function(resolve) {
+      var acc = [];
+      function readBatch() {
+        reader.readEntries(function(batch) {
+          if (!batch.length) { resolve(acc); return; }
+          acc = acc.concat(batch);
+          readBatch();
+        }, function() { resolve(acc); });
+      }
+      readBatch();
+    });
+    for (var i = 0; i < entries.length; i++) {
+      await walkEntry(entries[i], out);
+    }
+  }
+}
+
+function addFiles(files) {
+  var added = 0;
+  var skipped = 0;
+  var seenNames = {};
+  for (var i = 0; i < queuedFiles.length; i++) seenNames[queuedFiles[i].name] = true;
+  for (var j = 0; j < files.length; j++) {
+    var f = files[j];
+    if (!f.name.toLowerCase().endsWith('.pdf')) { skipped++; continue; }
+    if (seenNames[f.name]) continue;
+    queuedFiles.push({ file: f, name: f.name, status: 'pending' });
+    seenNames[f.name] = true;
+    added++;
+  }
+  renderFileList();
+  updateParseBtn();
+  dropZone.classList.toggle('has-file', queuedFiles.length > 0);
+  if (added > 0) {
+    document.getElementById('dropTitle').textContent = queuedFiles.length + ' PDF file(s) ready';
+    document.getElementById('dropSub').textContent = 'Drop more to add, or click Parse PDFs below';
+  }
+}
+
+function clearFiles() {
+  queuedFiles = [];
+  allRecords = [];
+  stats = { files: 0, records: 0, warnings: 0, errors: 0 };
+  renderFileList();
+  updateParseBtn();
+  dropZone.classList.remove('has-file');
+  document.getElementById('dropTitle').textContent = 'Drop a folder or files here, or click to browse';
+  document.getElementById('dropSub').textContent = 'Selects a whole folder by default — or use the button below for individual files';
+  document.getElementById('logPanel').classList.remove('visible');
+  document.getElementById('summaryBar').classList.remove('visible');
+  document.getElementById('recordsPanel').classList.remove('visible');
+  document.getElementById('futureNote').style.display = 'none';
+  document.getElementById('logBody').innerHTML = '';
+  document.getElementById('groupsContainer').innerHTML = '';
+}
+
+function renderFileList() {
+  var wrap = document.getElementById('fileListWrap');
+  var list = document.getElementById('fileList');
+  if (queuedFiles.length === 0) {
+    wrap.classList.remove('visible');
+    document.getElementById('clearBtn').classList.add('hidden');
+    return;
+  }
+  wrap.classList.add('visible');
+  document.getElementById('clearBtn').classList.remove('hidden');
+  document.getElementById('fileCount').textContent = queuedFiles.length + ' queued';
+  var html = '';
+  for (var i = 0; i < queuedFiles.length; i++) {
+    var q = queuedFiles[i];
+    var statusText = { pending: 'pending', parsing: 'parsing...', ok: 'parsed', err: 'error', skipped: 'skipped' }[q.status] || q.status;
+    html += '<div class="file-item ' + q.status + '">'
+         + '<span class="fi-icon">&#x1F4C4;</span>'
+         + '<span class="fi-name">' + esc(q.name) + '</span>'
+         + '<span class="fi-status">' + statusText + (q.rows != null ? ' — ' + q.rows + ' rows' : '') + '</span>'
+         + '</div>';
+  }
+  list.innerHTML = html;
+}
+
+function updateParseBtn() {
+  document.getElementById('parseBtn').disabled = queuedFiles.length === 0;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PARSE PIPELINE
+// ─────────────────────────────────────────────────────────────
+async function parseAll() {
+  var btn = document.getElementById('parseBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Parsing...';
+
+  allRecords = [];
+  stats = { files: 0, records: 0, warnings: 0, errors: 0 };
+  document.getElementById('logBody').innerHTML = '';
+  document.getElementById('logPanel').classList.add('visible');
+  document.getElementById('summaryBar').classList.remove('visible');
+  document.getElementById('recordsPanel').classList.remove('visible');
+  document.getElementById('groupsContainer').innerHTML = '';
+
+  log('Starting — ' + queuedFiles.length + ' file(s) queued', 'info');
+
+  for (var i = 0; i < queuedFiles.length; i++) {
+    var q = queuedFiles[i];
+    q.status = 'parsing';
+    renderFileList();
+    try {
+      var res = await parseOneFile(q.file);
+      q.rows = res.records.length;
+      if (res.records.length === 0) {
+        q.status = 'skipped';
+        log(q.name + ': no MEMBER CHECK LIST page found', 'warn');
+        stats.warnings++;
+      } else {
+        q.status = 'ok';
+        allRecords = allRecords.concat(res.records);
+        stats.records += res.records.length;
+        log(q.name + ': ' + res.records.length + ' record(s)', 'success');
+      }
+      if (res.warnings && res.warnings.length) {
+        for (var w = 0; w < res.warnings.length; w++) {
+          log('  ⚠ ' + res.warnings[w], 'warn');
+          stats.warnings++;
+        }
+      }
+    } catch (e) {
+      q.status = 'err';
+      log(q.name + ': ERROR — ' + e.message, 'error');
+      stats.errors++;
+      console.error(e);
+    }
+    stats.files++;
+    renderFileList();
+  }
+
+  document.getElementById('statFiles').textContent = stats.files;
+  document.getElementById('statRecords').textContent = stats.records;
+  document.getElementById('statWarnings').textContent = stats.warnings;
+  document.getElementById('statErrors').textContent = stats.errors;
+  document.getElementById('summaryBar').classList.add('visible');
+
+  renderRecords();
+  log('Done — ' + stats.records + ' record(s) extracted from ' + stats.files + ' file(s)',
+      stats.errors > 0 ? 'warn' : 'success');
+
+  btn.disabled = false;
+  btn.innerHTML = 'Parse PDFs';
+  document.getElementById('futureNote').style.display = 'block';
+}
+
+async function parseOneFile(file) {
+  var buf = await file.arrayBuffer();
+  var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  var records = [];
+  var warnings = [];
+  for (var pn = 1; pn <= pdf.numPages; pn++) {
+    var page = await pdf.getPage(pn);
+    var tc = await page.getTextContent();
+    var joined = tc.items.map(function(i) { return i.str; }).join(' ');
+    if (!/MEMBER\s+CHECK\s+LIST/i.test(joined)) continue;
+    var segments = await extractLineSegments(page);
+    var linesText = reconstructLines(tc.items);
+    var headerFields = extractHeader(linesText);
+    var pageWarnings = [];
+    var tableResult = extractTable(tc.items, segments, pageWarnings);
+    for (var w = 0; w < pageWarnings.length; w++) {
+      warnings.push(file.name + ' p' + pn + ': ' + pageWarnings[w]);
+    }
+    for (var r = 0; r < tableResult.rows.length; r++) {
+      var row = tableResult.rows[r];
+      var remarks = row.remarks || "";
+      if (row.qty && String(row.qty).trim() !== "") {
+        var qtyPart = 'Qty: ' + String(row.qty).trim();
+        remarks = remarks ? qtyPart + ' — ' + remarks : qtyPart;
+      }
+      records.push({
+        member_id:        row.member_id        || "",
+        member_desc:      row.member_desc      || "",
+        weld_types:       row.weld_types       || "",
+        acc_rej:          row.acc_rej          || "",
+        inspection_types: row.inspection_types || "",
+        member_size:      row.member_size      || "",
+        heat_no:          row.heat_no          || "",
+        remarks:          remarks,
+        final_acc_date:   normalizeDate(row.final_acc_date || ""),
+        ir_number:           headerFields.ir_number || "",
+        date:                normalizeDate(headerFields.date || ""),
+        cts_representative:  headerFields.cts_representative || "",
+        inspection_location: headerFields.code || "UNKNOWN",
+        smartsheet_label:    headerFields.label || "UNKNOWN",
+        source_file:         file.name,
+        source_page:         pn,
+      });
+    }
+  }
+  return { records: records, warnings: warnings };
+}
+
+// ─────────────────────────────────────────────────────────────
+//  DATE NORMALIZATION — M/D/YYYY, no zero-padding.
+// ─────────────────────────────────────────────────────────────
+function expandYear(y) {
+  var n = parseInt(y, 10);
+  if (isNaN(n)) return y;
+  if (String(y).length === 4) return n;
+  return n <= 49 ? 2000 + n : 1900 + n;
+}
+function normalizeDate(raw) {
+  if (raw === null || raw === undefined) return "";
+  var s = String(raw).trim();
+  if (!s) return "";
+  var m = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{2,4})$/);
+  if (m) {
+    var mon = MONTH_NAMES[m[1].toLowerCase()];
+    if (mon) return mon + '/' + parseInt(m[2], 10) + '/' + expandYear(m[3]);
+  }
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) return parseInt(m[1], 10) + '/' + parseInt(m[2], 10) + '/' + expandYear(m[3]);
+  return s;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  LINE-SEGMENT EXTRACTION
+// ─────────────────────────────────────────────────────────────
+async function extractLineSegments(page) {
+  var opList = await page.getOperatorList();
+  var OPS = pdfjsLib.OPS;
+  var segments = [];
+  var ctm = [1, 0, 0, 1, 0, 0];
+  var ctmStack = [];
+  function multiply(a, b) {
+    return [
+      a[0]*b[0] + a[2]*b[1],
+      a[1]*b[0] + a[3]*b[1],
+      a[0]*b[2] + a[2]*b[3],
+      a[1]*b[2] + a[3]*b[3],
+      a[0]*b[4] + a[2]*b[5] + a[4],
+      a[1]*b[4] + a[3]*b[5] + a[5],
+    ];
+  }
+  function apply(m, x, y) {
+    return [ m[0]*x + m[2]*y + m[4], m[1]*x + m[3]*y + m[5] ];
+  }
+  var cpx = 0, cpy = 0;
+  function addRect(x, y, w, h) {
+    var p0 = apply(ctm, x, y);
+    var p1 = apply(ctm, x + w, y);
+    var p2 = apply(ctm, x + w, y + h);
+    var p3 = apply(ctm, x, y + h);
+    segments.push({ x1: p0[0], y1: p0[1], x2: p1[0], y2: p1[1] });
+    segments.push({ x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1] });
+    segments.push({ x1: p2[0], y1: p2[1], x2: p3[0], y2: p3[1] });
+    segments.push({ x1: p3[0], y1: p3[1], x2: p0[0], y2: p0[1] });
+    cpx = p0[0]; cpy = p0[1];
+  }
+  for (var i = 0; i < opList.fnArray.length; i++) {
+    var fn = opList.fnArray[i];
+    var args = opList.argsArray[i];
+    if (fn === OPS.save) ctmStack.push(ctm.slice());
+    else if (fn === OPS.restore) { if (ctmStack.length > 0) ctm = ctmStack.pop(); }
+    else if (fn === OPS.transform) ctm = multiply(ctm, args);
+    else if (fn === OPS.moveTo) {
+      var p = apply(ctm, args[0], args[1]); cpx = p[0]; cpy = p[1];
+    } else if (fn === OPS.lineTo) {
+      var p2 = apply(ctm, args[0], args[1]);
+      segments.push({ x1: cpx, y1: cpy, x2: p2[0], y2: p2[1] });
+      cpx = p2[0]; cpy = p2[1];
+    } else if (fn === OPS.rectangle) {
+      addRect(args[0], args[1], args[2], args[3]);
+    } else if (fn === OPS.constructPath) {
+      var subOps = args[0], subArgs = args[1], j = 0;
+      for (var k = 0; k < subOps.length; k++) {
+        var sop = subOps[k];
+        if (sop === OPS.moveTo) {
+          var pp = apply(ctm, subArgs[j], subArgs[j + 1]); cpx = pp[0]; cpy = pp[1]; j += 2;
+        } else if (sop === OPS.lineTo) {
+          var pp2 = apply(ctm, subArgs[j], subArgs[j + 1]);
+          segments.push({ x1: cpx, y1: cpy, x2: pp2[0], y2: pp2[1] });
+          cpx = pp2[0]; cpy = pp2[1]; j += 2;
+        } else if (sop === OPS.rectangle) {
+          addRect(subArgs[j], subArgs[j + 1], subArgs[j + 2], subArgs[j + 3]); j += 4;
+        } else if (sop === OPS.curveTo) { j += 6; }
+        else if (sop === OPS.curveTo2 || sop === OPS.curveTo3) { j += 4; }
+        else if (sop === OPS.closePath) { /* no args */ }
+        else break;
+      }
+    }
+  }
+  return segments;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  TEXT LINE RECONSTRUCTION (for header-field regex extraction)
+// ─────────────────────────────────────────────────────────────
+function reconstructLines(items) {
+  var rows = [];
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var y = it.transform[5];
+    var x = it.transform[4];
+    var placed = false;
+    for (var r = 0; r < rows.length; r++) {
+      if (Math.abs(rows[r].y - y) < 2) {
+        rows[r].items.push({ x: x, str: it.str });
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) rows.push({ y: y, items: [{ x: x, str: it.str }] });
+  }
+  rows.sort(function(a, b) { return b.y - a.y; });
+  return rows.map(function(r) {
+    r.items.sort(function(a, b) { return a.x - b.x; });
+    return r.items.map(function(i) { return i.str; }).join(' ').replace(/\s+/g, ' ').trim();
+  }).filter(function(l) { return l.length > 0; });
+}
+
+// ─────────────────────────────────────────────────────────────
+//  REPORT-HEADER EXTRACTION (Date, IR#, CTS Rep, Location)
+// ─────────────────────────────────────────────────────────────
+function cleanNoise(s) {
+  var m = NOISE_RE.exec(s);
+  return (m ? s.slice(0, m.index) : s).trim();
+}
+
+function extractHeader(lines) {
+  var out = { date: null, ir_number: null, cts_representative: null,
+              inspection_location_raw: null, code: "UNKNOWN", label: "UNKNOWN" };
+  var dateRe = /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b/i;
+  for (var i = 0; i < Math.min(15, lines.length); i++) {
+    var m = lines[i].match(dateRe);
+    if (m) { out.date = m[0]; break; }
+  }
+  for (var j = 0; j < lines.length; j++) {
+    var m2 = lines[j].match(/Inspection\s+Request\s+no\.?\s*:?\s*(\S+)/i);
+    if (m2) { out.ir_number = m2[1].replace(/\.$/, ''); break; }
+  }
+  for (var k = 0; k < lines.length; k++) {
+    var m3 = lines[k].match(/CTS\s+Representative\s*:?\s*(.+)/i);
+    if (m3) { out.cts_representative = cleanNoise(m3[1]); break; }
+  }
+  for (var p = 0; p < lines.length; p++) {
+    var m4 = lines[p].match(/Inspection\s*Location\s*\.?\s*:?\s*(.+)/i);
+    if (m4) {
+      var part1 = cleanNoise(m4[1]);
+      var part2 = "";
+      if (p + 1 < lines.length) {
+        var nxt = lines[p + 1].trim();
+        if (nxt && !/^(TIO|Pg\.|Project|CTS\s+Rep|Inspection\s+Type|Inspection\s+Request|MEMBER|TESTING|HCAI)/i.test(nxt)) {
+          part2 = cleanNoise(nxt);
+        }
+      }
+      var raw = (part1 + (part2 ? " " + part2 : "")).trim();
+      out.inspection_location_raw = raw;
+      for (var q = 0; q < LOCATION_MAP.length; q++) {
+        var frag = LOCATION_MAP[q][0];
+        if (raw.toLowerCase().indexOf(frag.toLowerCase()) !== -1) {
+          out.code = LOCATION_MAP[q][1];
+          out.label = CODE_TO_LABEL[out.code];
+          break;
+        }
+      }
+      break;
+    }
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  BORDER-BASED TABLE EXTRACTION
+// ─────────────────────────────────────────────────────────────
+function extractTable(items, segments, warnings) {
+  var mclY = null;
+  for (var i = 0; i < items.length; i++) {
+    if (/MEMBER\s+CHECK\s+LIST/i.test(items[i].str)) { mclY = items[i].transform[5]; break; }
+  }
+  if (mclY === null) {
+    warnings.push("Could not locate MEMBER CHECK LIST header.");
+    return { rows: [] };
+  }
+
+  var FALLBACK_BOTTOM = 60;
+  var vertical = [];
+  var horizontal = [];
+  for (var s = 0; s < segments.length; s++) {
+    var seg = segments[s];
+    if (Math.abs(seg.x1 - seg.x2) < 1 && Math.abs(seg.y1 - seg.y2) > 2) vertical.push(seg);
+    else if (Math.abs(seg.y1 - seg.y2) < 1 && Math.abs(seg.x1 - seg.x2) > 2) horizontal.push(seg);
+  }
+
+  // Gap-detection for the table's bottom edge.
+  var candidateYs = [];
+  for (var h = 0; h < horizontal.length; h++) {
+    var seg2 = horizontal[h];
+    if (seg2.y1 >= FALLBACK_BOTTOM && seg2.y1 <= mclY + 5) candidateYs.push(seg2.y1);
+  }
+  var rowLinesTopDown = clusterSorted(candidateYs, 2).sort(function(a, b) { return b - a; });
+  var regionBottom = FALLBACK_BOTTOM;
+  if (rowLinesTopDown.length >= 3) {
+    var gaps = [];
+    for (var g = 0; g < rowLinesTopDown.length - 1; g++) {
+      gaps.push(rowLinesTopDown[g] - rowLinesTopDown[g + 1]);
+    }
+    var minGap = Math.min.apply(null, gaps);
+    var GAP_FACTOR = 3;
+    for (var gi = 0; gi < gaps.length; gi++) {
+      if (gaps[gi] > minGap * GAP_FACTOR) { regionBottom = rowLinesTopDown[gi] - 0.5; break; }
+    }
+  } else if (rowLinesTopDown.length === 2) {
+    regionBottom = rowLinesTopDown[1] - 0.5;
+  }
+
+  var vInRegion = vertical.filter(function(s) {
+    return Math.min(s.y1, s.y2) >= regionBottom && Math.max(s.y1, s.y2) <= mclY + 5;
+  });
+  var hInRegion = horizontal.filter(function(s) {
+    return s.y1 >= regionBottom && s.y1 <= mclY + 5;
+  });
+
+  var colBoundaries = clusterSorted(vInRegion.map(function(s) { return s.x1; }), 2);
+  var rowBoundaries = clusterSorted(hInRegion.map(function(s) { return s.y1; }), 2).sort(function(a, b) { return b - a; });
+
+  if (colBoundaries.length < 3) {
+    warnings.push("Only " + colBoundaries.length + " vertical border(s) detected — cannot determine columns.");
+    return { rows: [] };
+  }
+  if (rowBoundaries.length < 2) {
+    warnings.push("Only " + rowBoundaries.length + " horizontal border(s) detected — cannot determine rows.");
+    return { rows: [] };
+  }
+
+  var colsAsc = colBoundaries.slice().sort(function(a, b) { return a - b; });
+  var numCols = colsAsc.length - 1;
+  var numRows = rowBoundaries.length - 1;
+
+  function rowFor(y) {
+    for (var j = 0; j < numRows; j++) {
+      var top = rowBoundaries[j], bot = rowBoundaries[j + 1];
+      if (y <= top + 0.5 && y > bot - 0.5) return j;
+    }
+    return -1;
+  }
+  function colForCenter(cx) {
+    for (var i2 = 0; i2 < numCols; i2++) {
+      if (cx >= colsAsc[i2] - 0.5 && cx < colsAsc[i2 + 1] - 0.5) return i2;
+    }
+    return -1;
+  }
+
+  // Place items into a grid.
+  var colWidths = [];
+  for (var cw = 0; cw < numCols; cw++) colWidths.push(colsAsc[cw + 1] - colsAsc[cw]);
+  var medW = median(colWidths);
+  var SPAN = 1.5;
+
+  var grid = [];
+  for (var jj = 0; jj < numRows; jj++) grid.push(new Array(numCols).fill(""));
+
+  for (var ii = 0; ii < items.length; ii++) {
+    var it2 = items[ii];
+    var str = it2.str;
+    if (!str || !/\S/.test(str)) continue;
+    var xp = it2.transform[4];
+    var yp = it2.transform[5];
+    var wp = it2.width || estimateWidth(str);
+    var rIdx = rowFor(yp);
+    if (rIdx < 0) continue;
+    var isWide = wp > medW * SPAN;
+
+    if (!isWide) {
+      var col = colForCenter(xp + wp / 2);
+      if (col < 0) continue;
+      grid[rIdx][col] = grid[rIdx][col] ? grid[rIdx][col] + ' ' + str : str;
+      continue;
+    }
+
+    var xL = xp, xR = xp + wp;
+    var spanned = [];
+    for (var ic = 0; ic < numCols; ic++) {
+      var cL = colsAsc[ic], cR = colsAsc[ic + 1];
+      var ov = Math.min(xR, cR) - Math.max(xL, cL);
+      if (ov > 1) spanned.push({ col: ic, right: cR });
+    }
+    if (spanned.length <= 1) {
+      if (spanned[0]) {
+        var c1 = spanned[0].col;
+        grid[rIdx][c1] = grid[rIdx][c1] ? grid[rIdx][c1] + ' ' + str : str;
+      }
+      continue;
+    }
+    var textSpan = xR - xL;
+    var bts = [];
+    for (var bi = 0; bi < spanned.length - 1; bi++) {
+      var splitX = spanned[bi].right;
+      var frac = (splitX - xL) / textSpan;
+      var idx = Math.max(0, Math.min(str.length, Math.round(str.length * frac)));
+      bts.push(snapToWhitespace(str, idx));
+    }
+    var start = 0;
+    for (var si = 0; si < spanned.length; si++) {
+      var end = si < bts.length ? bts[si] : str.length;
+      var piece = str.slice(start, end).trim();
+      if (piece) {
+        var cc = spanned[si].col;
+        grid[rIdx][cc] = grid[rIdx][cc] ? grid[rIdx][cc] + ' ' + piece : piece;
+      }
+      start = end;
+    }
+  }
+
+  // Identify header row and column→field mapping.
+  var hdr = identifyHeaderRow(items, rowBoundaries, colsAsc);
+  if (hdr.headerRowIdx < 0) {
+    warnings.push("Could not identify the column-header row in the table.");
+    return { rows: [] };
+  }
+
+  var rows = [];
+  for (var dj = hdr.headerRowIdx + 1; dj < numRows; dj++) {
+    var cells = {};
+    var hasContent = false;
+    for (var ci = 0; ci < numCols; ci++) {
+      var field = hdr.colToField[ci];
+      if (!field) continue;
+      var val = (grid[dj][ci] || "").trim();
+      if (val) hasContent = true;
+      cells[field] = val;
+    }
+    if (hasContent && (cells.member_id || "").trim()) rows.push(cells);
+  }
+  return { rows: rows };
+}
+
+function identifyHeaderRow(items, rowBoundaries, colsAsc) {
+  var numRows = rowBoundaries.length - 1;
+  var numCols = colsAsc.length - 1;
+  function rowFor(y) {
+    for (var j = 0; j < numRows; j++) {
+      var top = rowBoundaries[j], bot = rowBoundaries[j + 1];
+      if (y <= top + 0.5 && y > bot - 0.5) return j;
+    }
+    return -1;
+  }
+  function colForX(x) {
+    for (var i = 0; i < numCols; i++) {
+      if (x >= colsAsc[i] - 0.5 && x < colsAsc[i + 1] - 0.5) return i;
+    }
+    return -1;
+  }
+
+  var itemsByRow = [];
+  for (var jj = 0; jj < numRows; jj++) itemsByRow.push([]);
+  for (var ii = 0; ii < items.length; ii++) {
+    var it = items[ii];
+    if (!it.str || !/\S/.test(it.str)) continue;
+    var rIdx = rowFor(it.transform[5]);
+    if (rIdx >= 0) itemsByRow[rIdx].push(it);
+  }
+
+  for (var j = 0; j < numRows; j++) {
+    var rowItems = itemsByRow[j];
+    if (rowItems.length === 0) continue;
+    var matches = [];
+    for (var ri = 0; ri < rowItems.length; ri++) {
+      var it2 = rowItems[ri];
+      var s = it2.str;
+      var itX = it2.transform[4];
+      var itW = it2.width || estimateWidth(s);
+      var strLen = Math.max(1, s.length);
+      for (var fp = 0; fp < FIELD_PATTERNS.length; fp++) {
+        var pattern = FIELD_PATTERNS[fp];
+        var m = s.search(pattern.re);
+        if (m < 0) continue;
+        var mstr = s.match(pattern.re)[0];
+        var charCenter = m + mstr.length / 2;
+        var x = itX + itW * (charCenter / strLen);
+        matches.push({ field: pattern.field, x: x });
+      }
+    }
+    if (matches.length < 3) continue;
+    matches.sort(function(a, b) { return a.x - b.x; });
+    var seen = {};
+    var uniq = [];
+    for (var mi = 0; mi < matches.length; mi++) {
+      if (seen[matches[mi].field]) continue;
+      seen[matches[mi].field] = true;
+      uniq.push(matches[mi]);
+    }
+    var colToField = new Array(numCols).fill(null);
+    var minCol = 0;
+    for (var ui = 0; ui < uniq.length; ui++) {
+      var col = colForX(uniq[ui].x);
+      if (col < 0) col = uniq[ui].x < colsAsc[0] ? 0 : numCols - 1;
+      if (col < minCol) col = minCol;
+      while (col < numCols && colToField[col] !== null) col++;
+      if (col >= numCols) break;
+      colToField[col] = uniq[ui].field;
+      minCol = col + 1;
+    }
+    var found = 0;
+    for (var fi = 0; fi < numCols; fi++) if (colToField[fi]) found++;
+    if (found >= 3) return { headerRowIdx: j, colToField: colToField };
+  }
+  return { headerRowIdx: -1, colToField: new Array(numCols).fill(null) };
+}
+
+// ─────────────────────────────────────────────────────────────
+//  UTILITIES
+// ─────────────────────────────────────────────────────────────
+function clusterSorted(arr, tol) {
+  if (arr.length === 0) return [];
+  var sorted = arr.slice().sort(function(a, b) { return a - b; });
+  var clusters = [[sorted[0]]];
+  for (var i = 1; i < sorted.length; i++) {
+    var x = sorted[i];
+    var last = clusters[clusters.length - 1];
+    var mean = last.reduce(function(s, v) { return s + v; }, 0) / last.length;
+    if (Math.abs(x - mean) <= tol) last.push(x);
+    else clusters.push([x]);
+  }
+  return clusters.map(function(c) {
+    return c.reduce(function(s, v) { return s + v; }, 0) / c.length;
+  });
+}
+
+function median(arr) {
+  if (arr.length === 0) return 0;
+  var s = arr.slice().sort(function(a, b) { return a - b; });
+  var m = Math.floor(s.length / 2);
+  return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
+}
+
+function snapToWhitespace(s, idx) {
+  var window = 4;
+  for (var d = 0; d <= window; d++) {
+    if (idx + d < s.length && /\s/.test(s[idx + d])) return idx + d;
+    if (idx - d > 0 && /\s/.test(s[idx - d - 1])) return idx - d;
+  }
+  return idx;
+}
+
+function estimateWidth(s) { return s.length * 5; }
+
+// ─────────────────────────────────────────────────────────────
+//  RENDERING
+// ─────────────────────────────────────────────────────────────
+function renderRecords() {
+  if (allRecords.length === 0) return;
+  // Group by IR# + date + CTS rep (sort IR# ascending, then date, then rep).
+  var groups = {};
+  for (var i = 0; i < allRecords.length; i++) {
+    var r = allRecords[i];
+    var key = (r.ir_number || '—') + '|' + (r.date || '—') + '|' + (r.cts_representative || '—');
+    if (!groups[key]) groups[key] = { ir: r.ir_number, date: r.date, rep: r.cts_representative, records: [] };
+    groups[key].records.push(r);
+  }
+  var keys = Object.keys(groups).sort(function(a, b) {
+    var ga = groups[a], gb = groups[b];
+    var irCmp = (ga.ir || '').localeCompare(gb.ir || '', undefined, { numeric: true });
+    if (irCmp !== 0) return irCmp;
+    var dateA = parseDateKey(ga.date), dateB = parseDateKey(gb.date);
+    if (dateA !== dateB) return dateA - dateB;
+    return (ga.rep || '').localeCompare(gb.rep || '');
+  });
+
+  var panel = document.getElementById('recordsPanel');
+  var container = document.getElementById('groupsContainer');
+  document.getElementById('recordsTotal').textContent = allRecords.length + ' records across ' + keys.length + ' group(s)';
+  container.innerHTML = '';
+
+  for (var k = 0; k < keys.length; k++) {
+    var g = groups[keys[k]];
+    var groupEl = document.createElement('div');
+    groupEl.className = 'group';
+    var title = 'IR #' + (g.ir || '—') + ' — ' + (g.date || '—') + ' — ' + (g.rep || '—');
+    groupEl.innerHTML =
+        '<div class="group-header" onclick="toggleGroup(this)">'
+      +   '<span class="gh-caret">&#x25BC;</span>'
+      +   '<span class="gh-title">' + esc(title) + '</span>'
+      +   '<span class="gh-count">' + g.records.length + ' record(s)</span>'
+      + '</div>'
+      + '<div class="group-body">' + renderRecordsTable(g.records) + '</div>';
+    container.appendChild(groupEl);
+  }
+  panel.classList.add('visible');
+}
+
+function toggleGroup(headerEl) {
+  headerEl.classList.toggle('collapsed');
+  var body = headerEl.nextElementSibling;
+  if (body) body.classList.toggle('collapsed');
+}
+
+function parseDateKey(d) {
+  // d is normalized to M/D/YYYY. Convert to sortable number.
+  var m = (d || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return 0;
+  return parseInt(m[3], 10) * 10000 + parseInt(m[1], 10) * 100 + parseInt(m[2], 10);
+}
+
+function renderRecordsTable(records) {
+  var html = '<table class="records"><thead><tr><th class="c-idx">#</th>';
+  for (var c = 0; c < DISPLAY_COLS.length; c++) html += '<th>' + DISPLAY_COLS[c] + '</th>';
+  html += '</tr></thead><tbody>';
+  for (var i = 0; i < records.length; i++) {
+    var r = records[i];
+    html += '<tr><td class="c-idx">' + (i + 1) + '</td>';
+    for (var c2 = 0; c2 < DISPLAY_COLS.length; c2++) {
+      var v = r[DISPLAY_COLS[c2]];
+      html += '<td>' + (v ? esc(v) : '<span class="c-empty">—</span>') + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  LOG
+// ─────────────────────────────────────────────────────────────
+function log(msg, type) {
+  var body = document.getElementById('logBody');
+  var ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+  var cls = { info: 'log-info', success: 'log-success', error: 'log-error', warn: 'log-warn' }[type || 'info'] || 'log-info';
+  body.innerHTML += '<div class="log-line"><span class="log-time">[' + ts + ']</span><span class="' + cls + '">' + esc(msg) + '</span></div>';
+  body.scrollTop = body.scrollHeight;
+  document.getElementById('logCount').textContent = body.querySelectorAll('.log-line').length + ' entries';
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+</script>
+</body>
+</html>
