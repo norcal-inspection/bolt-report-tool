@@ -169,32 +169,11 @@
 </div>
 
 <div class="instructions">
-  <strong>How to use:</strong> Drop a folder of IR PDFs (or individual files) into the upload zone. Paste your Smartsheet API token and test the connection. Click <strong>Parse PDFs</strong> to extract records and cross-check them against the Principle sheet for suspected duplicates. Smartsheet push will be added in a future update.
+  <strong>How to use:</strong> Paste your Smartsheet API token once &mdash; it's remembered on this browser. Drop a folder of IR PDFs into the upload zone and click <strong>Parse PDFs</strong> to extract records and cross-check them against the Principle sheet for suspected duplicates. Smartsheet push will be added in a future update.
 </div>
 
 <div class="panel">
-  <h2>Step 1 &mdash; Upload PDFs</h2>
-  <div class="drop-zone" id="dropZone">
-    <input type="file" id="fileInput" multiple accept=".pdf" webkitdirectory directory>
-    <span class="drop-icon">&#x1F4C1;</span>
-    <h3 id="dropTitle">Drop a folder or files here, or click to browse</h3>
-    <p id="dropSub">Selects a whole folder by default &mdash; or use the button below for individual files</p>
-  </div>
-  <div class="btn-row">
-    <button class="btn btn-secondary" id="pickFilesBtn" onclick="pickFiles()">Pick individual PDFs</button>
-    <button class="btn btn-danger hidden" id="clearBtn" onclick="clearFiles()">Clear</button>
-  </div>
-  <div class="file-list-wrap" id="fileListWrap">
-    <div class="file-list-header">
-      <span>Queued files</span>
-      <span id="fileCount" style="color:var(--text-dim);"></span>
-    </div>
-    <div class="file-list" id="fileList"></div>
-  </div>
-</div>
-
-<div class="panel">
-  <h2>Step 2 &mdash; Smartsheet Connection</h2>
+  <h2>Step 1 &mdash; Smartsheet Connection</h2>
   <div class="settings-field">
     <label for="smToken">API Token</label>
     <div class="input-row">
@@ -221,6 +200,27 @@
   <div class="connection-status idle" id="connStatus">
     <span class="connection-dot"></span>
     <span id="connStatusText">Not tested yet</span>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Step 2 &mdash; Upload PDFs</h2>
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" multiple accept=".pdf" webkitdirectory directory>
+    <span class="drop-icon">&#x1F4C1;</span>
+    <h3 id="dropTitle">Drop a folder or files here, or click to browse</h3>
+    <p id="dropSub">Selects a whole folder by default &mdash; or use the button below for individual files</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="pickFilesBtn" onclick="pickFiles()">Pick individual PDFs</button>
+    <button class="btn btn-danger hidden" id="clearBtn" onclick="clearFiles()">Clear</button>
+  </div>
+  <div class="file-list-wrap" id="fileListWrap">
+    <div class="file-list-header">
+      <span>Queued files</span>
+      <span id="fileCount" style="color:var(--text-dim);"></span>
+    </div>
+    <div class="file-list" id="fileList"></div>
   </div>
 </div>
 
@@ -522,10 +522,16 @@ function updateParseBtn() {
 
 // Load saved settings from localStorage on first paint.
 (function initSmartsheetSettings() {
+  var savedToken = '';
+  var savedPrincipleId = '';
+  var savedShadowId = '';
   try {
-    document.getElementById('smToken').value = localStorage.getItem(LS_KEYS.token) || '';
-    document.getElementById('smPrincipleId').value = localStorage.getItem(LS_KEYS.principleId) || DEFAULT_PRINCIPLE_ID;
-    document.getElementById('smShadowId').value = localStorage.getItem(LS_KEYS.shadowId) || DEFAULT_SHADOW_ID;
+    savedToken = localStorage.getItem(LS_KEYS.token) || '';
+    savedPrincipleId = localStorage.getItem(LS_KEYS.principleId) || DEFAULT_PRINCIPLE_ID;
+    savedShadowId = localStorage.getItem(LS_KEYS.shadowId) || DEFAULT_SHADOW_ID;
+    document.getElementById('smToken').value = savedToken;
+    document.getElementById('smPrincipleId').value = savedPrincipleId;
+    document.getElementById('smShadowId').value = savedShadowId;
   } catch (e) { /* localStorage unavailable — fine */ }
   // Persist on every change.
   document.getElementById('smToken').addEventListener('input', function(e) {
@@ -540,6 +546,13 @@ function updateParseBtn() {
     try { localStorage.setItem(LS_KEYS.shadowId, e.target.value); } catch (_) {}
     invalidateConnection();
   });
+  // If we already have credentials saved, silently re-test on load so
+  // users don't have to click Test Connection every visit. Catches
+  // expired tokens early without extra clicks.
+  if (savedToken && savedPrincipleId && savedShadowId) {
+    // Slight delay so the page renders first.
+    setTimeout(function() { testConnection(); }, 50);
+  }
 })();
 
 function toggleTokenVisibility() {
