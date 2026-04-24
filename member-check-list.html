@@ -156,6 +156,10 @@
   .btn-mini.active-add{background:rgba(74,232,122,0.15);color:var(--green);border-color:rgba(74,232,122,0.3);}
 
   .empty-review{padding:40px 20px;text-align:center;color:var(--text-dim);font-family:var(--mono);font-size:12px;}
+
+  #pushLogPanel{display:none;margin-top:20px;}
+  #pushLogPanel.visible{display:block;}
+  .btn-row.hidden{display:none;}
 </style>
 </head>
 <body>
@@ -262,8 +266,17 @@
   <div id="suspectedPane" class="review-pane hidden"></div>
 </div>
 
-<div class="future-note" id="futureNote" style="display:none;">
-  <strong>Next up:</strong> pushing approved records to Smartsheet, with Shadow-List cross-referencing. The disposition choices you make here (Add Anyway / Skip / Keep in Suspected) will be remembered and applied when push is wired up.
+<div class="btn-row hidden" id="pushRow" style="margin-bottom:20px;">
+  <button class="btn btn-primary" id="pushBtn" onclick="pushApproved()" disabled>Push Approved to Smartsheet</button>
+  <span id="pushSummary" style="color:var(--text-dim);font-family:var(--mono);font-size:12px;margin-left:8px;align-self:center;"></span>
+</div>
+
+<div class="log-panel" id="pushLogPanel">
+  <div class="log-header">
+    <span>Push Activity Log</span>
+    <span id="pushLogCount" style="color:var(--text-dim);"></span>
+  </div>
+  <div class="log-body" id="pushLogBody"></div>
 </div>
 
 <script>
@@ -354,9 +367,22 @@ var SMARTSHEET_COLS = {
   cts_representative: 'CTS Representative',
 };
 
+// Location-section header labels in the Principle sheet. Records are
+// inserted below the matching section header and sorted within it.
+var LOCATION_ROW_LABELS = ['ELOY', 'LINDON', 'GUADALAJARA', 'OTTAWA', 'PHOENIX', 'STOCKTON'];
+
+// Smartsheet format-string color index for green — cells colored this
+// way in the Shadow List indicate "already cross-referenced."
+var SMARTSHEET_GREEN = 14;
+
 // Per-suspect disposition state: key -> 'skip' | 'keep' | 'add'
 // Populated when user clicks an action on a suspect card.
 var dispositions = {};
+
+// Suspect array last built by renderRecords (needed by pushApproved to
+// resolve dispositions back to records without re-running dedup).
+var lastSuspects = [];
+var lastApproved = [];
 
 // ─────────────────────────────────────────────────────────────
 //  FILE INTAKE
@@ -465,7 +491,11 @@ function clearFiles() {
   document.getElementById('logPanel').classList.remove('visible');
   document.getElementById('summaryBar').classList.remove('visible');
   document.getElementById('recordsPanel').classList.remove('visible');
-  document.getElementById('futureNote').style.display = 'none';
+  document.getElementById('futureNote') && (document.getElementById('futureNote').style.display = 'none');
+  document.getElementById('pushRow').classList.add('hidden');
+  document.getElementById('pushLogPanel').classList.remove('visible');
+  document.getElementById('pushLogBody').innerHTML = '';
+  document.getElementById('pushSummary').textContent = '';
   document.getElementById('logBody').innerHTML = '';
   document.getElementById('approvedPane').innerHTML = '';
   document.getElementById('suspectedPane').innerHTML = '';
@@ -713,6 +743,426 @@ function buildNarrowKeyMap(sheetRows, colMap) {
   }
   return map;
 }
+
+// ─────────────────────────────────────────────────────────────
+//  PUSH TO SMARTSHEET
+// ─────────────────────────────────────────────────────────────
+
+// Small helper for the push log panel (separate from the parse log).
+function pushLog(msg, type) {
+  var body = document.getElementById('pushLogBody');
+  var ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+  var cls = { info: 'log-info', success: 'log-success', error: 'log-error', warn: 'log-warn' }[type || 'info'] || 'log-info';
+  body.innerHTML += '<div class="log-line"><span class="log-time">[' + ts + ']</span><span class="' + cls + '">' + esc(msg) + '</span></div>';
+  body.scrollTop = body.scrollHeight;
+  document.getElementById('pushLogCount').textContent = body.querySelectorAll('.log-line').length + ' entries';
+}
+
+// Compute how many records are eligible for push right now and whether
+// the button should be enabled.
+function countPushable() {
+  var n = lastApproved ? lastApproved.length : 0;
+  if (lastSuspects) {
+    for (var i = 0; i < lastSuspects.length; i++) {
+      var d = dispositions[lastSuspects[i].suspectId];
+      if (d === 'add') n++;
+    }
+  }
+  return n;
+}
+
+function updatePushBtn() {
+  var btn = document.getElementById('pushBtn');
+  if (!btn) return;
+  var n = countPushable();
+  var canPush = connection.ok && n > 0;
+  btn.disabled = !canPush;
+  btn.textContent = n === 0 ? 'Push Approved to Smartsheet' : 'Push ' + n + ' record(s) to Smartsheet';
+  var sum = document.getElementById('pushSummary');
+  if (n === 0) {
+    sum.textContent = 'No records cleared for push.';
+  } else {
+    var approvedCount = lastApproved ? lastApproved.length : 0;
+    var addCount = n - approvedCount;
+    sum.textContent = addCount > 0
+      ? approvedCount + ' approved + ' + addCount + ' from suspected (Add Anyway)'
+      : approvedCount + ' approved';
+  }
+}
+
+// Locate the first data row whose Member ID cell contains the given
+// location label (case-insensitive, trimmed). Returns the row_id.
+function findLocationRowId(rows, label) {
+  var lu = String(label || '').trim().toUpperCase();
+  for (var i = 0; i < rows.length; i++) {
+    var cells = rows[i].cells || [];
+    for (var c = 0; c < cells.length; c++) {
+      var v = String(cells[c].value || cells[c].displayValue || '').trim().toUpperCase();
+      if (v === lu) return rows[i].id;
+    }
+  }
+  return null;
+}
+
+// Return an ordered list of [member_id, row_id] for the data rows within
+// the section that starts at section_row_id. Walks forward from that
+// row and stops when it hits another location label (next section).
+function getSectionMemberRows(sheetRows, sectionRowId, memberIdColId) {
+  var inSection = false;
+  var result = [];
+  for (var i = 0; i < sheetRows.length; i++) {
+    var row = sheetRows[i];
+    if (row.id === sectionRowId) { inSection = true; continue; }
+    if (!inSection) continue;
+    // Check for a separator row (next section header).
+    var isSeparator = false;
+    var cells = row.cells || [];
+    for (var c = 0; c < cells.length; c++) {
+      var v = String(cells[c].value || cells[c].displayValue || '').trim().toUpperCase();
+      if (LOCATION_ROW_LABELS.indexOf(v) !== -1) { isSeparator = true; break; }
+    }
+    if (isSeparator) break;
+    // Collect the member_id cell.
+    for (var c2 = 0; c2 < cells.length; c2++) {
+      if (cells[c2].columnId === memberIdColId) {
+        var mid = String(cells[c2].value || cells[c2].displayValue || '').trim();
+        if (mid) result.push([mid, row.id]);
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+// Decide which row to insert below for a new record:
+// 1. If member_id already exists in the section, insert below its last
+//    occurrence (keeps groups together).
+// 2. Otherwise, find the largest existing member_id that's still smaller
+//    than the new one (alphanumeric), and insert below its last row.
+// 3. If the new member_id is smaller than everything, insert below the
+//    section header itself.
+function findInsertSibling(sheetRows, sectionRowId, memberId, memberIdColId) {
+  var sectionRows = getSectionMemberRows(sheetRows, sectionRowId, memberIdColId);
+  if (sectionRows.length === 0) return sectionRowId;
+  // Case 1: existing member_id
+  var lastMatch = null;
+  for (var i = 0; i < sectionRows.length; i++) {
+    if (sectionRows[i][0] === memberId) lastMatch = sectionRows[i][1];
+  }
+  if (lastMatch) return lastMatch;
+  // Case 2 & 3: sorted insertion
+  var uniqueIds = [];
+  var seen = {};
+  for (var j = 0; j < sectionRows.length; j++) {
+    var mid = sectionRows[j][0];
+    if (!seen[mid]) { seen[mid] = true; uniqueIds.push(mid); }
+  }
+  var all = uniqueIds.slice();
+  all.push(memberId);
+  all.sort();
+  var newPos = all.indexOf(memberId);
+  if (newPos === 0) return sectionRowId;
+  var predId = all[newPos - 1];
+  var lastPred = null;
+  for (var k = 0; k < sectionRows.length; k++) {
+    if (sectionRows[k][0] === predId) lastPred = sectionRows[k][1];
+  }
+  return lastPred || sectionRowId;
+}
+
+// POST a single row insert. Returns the new row's ID, or null on failure.
+async function addRowBelow(token, sheetId, siblingId, cells) {
+  var response = await fetch(PROXY_BASE + '/2.0/sheets/' + encodeURIComponent(sheetId) + '/rows', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify([{ siblingId: siblingId, below: true, cells: cells }]),
+  });
+  if (!response.ok) {
+    var body = ''; try { body = await response.text(); } catch (_) {}
+    throw new Error('HTTP ' + response.status + (body ? ' — ' + body.slice(0, 180) : ''));
+  }
+  var data = await response.json();
+  if (data && data.result && data.result[0] && data.result[0].id) return data.result[0].id;
+  return null;
+}
+
+async function addRowToBottom(token, sheetId, cells) {
+  var response = await fetch(PROXY_BASE + '/2.0/sheets/' + encodeURIComponent(sheetId) + '/rows', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify([{ toBottom: true, cells: cells }]),
+  });
+  if (!response.ok) {
+    var body = ''; try { body = await response.text(); } catch (_) {}
+    throw new Error('HTTP ' + response.status + (body ? ' — ' + body.slice(0, 180) : ''));
+  }
+  return response.json();
+}
+
+// PUT a cell color update. The format string is Smartsheet's compact
+// encoding — position 9 (0-indexed) is the background color index.
+async function updateCellColor(token, sheetId, rowId, colId, value, colorId) {
+  var response = await fetch(PROXY_BASE + '/2.0/sheets/' + encodeURIComponent(sheetId) + '/rows', {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify([{
+      id: rowId,
+      cells: [{
+        columnId: colId,
+        value: value,
+        format: ',,,,,,,,,' + colorId + ',,,,,,',
+      }],
+    }]),
+  });
+  if (!response.ok) {
+    var body = ''; try { body = await response.text(); } catch (_) {}
+    throw new Error('HTTP ' + response.status + (body ? ' — ' + body.slice(0, 180) : ''));
+  }
+  return response.json();
+}
+
+// Build the cells array for an insert, matching columns by title.
+function buildRowCells(record, colMap) {
+  var cells = [];
+  for (var key in SMARTSHEET_COLS) {
+    var colTitle = SMARTSHEET_COLS[key];
+    // Use inspection_location → smartsheet_label mapping.
+    var val;
+    if (key === 'inspection_location') val = record.smartsheet_label || '';
+    else val = record[key] || '';
+    if (!val) continue;
+    var colId = colMap.byField[key];
+    if (!colId) continue;
+    cells.push({ columnId: colId, value: String(val) });
+  }
+  return cells;
+}
+
+// Shadow List: normalize a Member ID for matching. Extract the leading
+// alphanumeric token (stops at whitespace, '(', or '['), then strip
+// dashes and uppercase. Examples:
+//   "3005A (E.6/15)" -> "3005A"
+//   "M-4561"         -> "M4561"
+function normalizeForShadow(s) {
+  var trimmed = String(s || '').trim();
+  var match = trimmed.split(/[\s\(\[]/)[0] || trimmed;
+  return match.replace(/-/g, '').toUpperCase();
+}
+
+// Main push handler — triggered by the Push Approved button.
+async function pushApproved() {
+  var token = document.getElementById('smToken').value.trim();
+  var principleId = document.getElementById('smPrincipleId').value.trim();
+  var shadowId = document.getElementById('smShadowId').value.trim();
+  if (!connection.ok || !token || !principleId || !shadowId) {
+    alert('Smartsheet connection is not ready. Test the connection first.');
+    return;
+  }
+
+  // Collect records to push.
+  var toPush = [];
+  for (var i = 0; i < lastApproved.length; i++) toPush.push(lastApproved[i]);
+  for (var j = 0; j < lastSuspects.length; j++) {
+    if (dispositions[lastSuspects[j].suspectId] === 'add') {
+      toPush.push(lastSuspects[j].incoming);
+    }
+  }
+  if (toPush.length === 0) { alert('Nothing to push.'); return; }
+
+  var btn = document.getElementById('pushBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Pushing...';
+  document.getElementById('pushLogBody').innerHTML = '';
+  document.getElementById('pushLogPanel').classList.add('visible');
+  pushLog('Starting push — ' + toPush.length + ' record(s)', 'info');
+
+  try {
+    // Refresh the principle sheet so insertion uses up-to-date state.
+    pushLog('Fetching current Principle sheet state...', 'info');
+    var sheet = await fetchSheet(token, principleId);
+    var colMap = buildColMap(sheet.columns || []);
+    var sheetRows = sheet.rows || [];
+
+    // Verify we have the Member ID column (needed for within-section sorting).
+    var memberIdColId = colMap.byField.member_id;
+    if (!memberIdColId) {
+      throw new Error('Principle sheet is missing a "Member ID" column.');
+    }
+
+    // Map location labels → row IDs once.
+    var locCache = {};
+    for (var li = 0; li < LOCATION_ROW_LABELS.length; li++) {
+      var label = LOCATION_ROW_LABELS[li];
+      var rid = findLocationRowId(sheetRows, label);
+      if (rid) { locCache[label] = rid; pushLog('Section "' + label + '" found.', 'info'); }
+      else pushLog('Section "' + label + '" not found — records will go to bottom.', 'warn');
+    }
+
+    // Group incoming records by smartsheet_label.
+    var groups = {};
+    for (var gi = 0; gi < toPush.length; gi++) {
+      var lab = toPush[gi].smartsheet_label || 'UNKNOWN';
+      if (!groups[lab]) groups[lab] = [];
+      groups[lab].push(toPush[gi]);
+    }
+
+    var pushedMemberIds = [];
+    var pushedCount = 0;
+    var failedCount = 0;
+
+    // For each group, insert records one by one, refreshing sheetRows
+    // after each insert so the next sibling lookup reflects the update.
+    for (var label in groups) {
+      var recs = groups[label];
+      pushLog('', 'info');
+      pushLog('Pushing to [' + label + '] — ' + recs.length + ' record(s)...', 'info');
+      var sectionRowId = locCache[label];
+
+      for (var ri = 0; ri < recs.length; ri++) {
+        var rec = recs[ri];
+        var cells = buildRowCells(rec, colMap);
+        if (cells.length === 0) {
+          pushLog('  ! No data to push for ' + (rec.member_id || '?'), 'warn');
+          continue;
+        }
+        var mid = rec.member_id || '?';
+        try {
+          if (sectionRowId) {
+            var siblingRow = findInsertSibling(sheetRows, sectionRowId, mid, memberIdColId);
+            await addRowBelow(token, principleId, siblingRow, cells);
+            if (siblingRow === sectionRowId) {
+              pushLog('  + Added ' + mid + ' (top of ' + label + ') — IR #' + (rec.ir_number || '?') + ', ' + (rec.date || ''), 'success');
+            } else {
+              // Figure out which member_id we landed under for a nicer log line.
+              var sectionRowsNow = getSectionMemberRows(sheetRows, sectionRowId, memberIdColId);
+              var underMid = '?';
+              for (var sr = 0; sr < sectionRowsNow.length; sr++) {
+                if (sectionRowsNow[sr][1] === siblingRow) { underMid = sectionRowsNow[sr][0]; break; }
+              }
+              pushLog('  + Added ' + mid + ' (under ' + underMid + ') — IR #' + (rec.ir_number || '?') + ', ' + (rec.date || ''), 'success');
+            }
+            // Refresh so the next insert sees the updated sheet.
+            var refreshed = await fetchSheet(token, principleId);
+            sheetRows = refreshed.rows || [];
+          } else {
+            await addRowToBottom(token, principleId, cells);
+            pushLog('  + Added ' + mid + ' at bottom — [' + label + '] section not found', 'warn');
+          }
+          pushedMemberIds.push(mid);
+          pushedCount++;
+        } catch (e) {
+          pushLog('  ERROR pushing ' + mid + ' — ' + e.message, 'error');
+          failedCount++;
+        }
+      }
+    }
+
+    pushLog('', 'info');
+    pushLog('Pushed ' + pushedCount + ' / ' + toPush.length + ' record(s) to Principle sheet.',
+      failedCount > 0 ? 'warn' : 'success');
+
+    // Shadow List coloring step.
+    if (pushedMemberIds.length > 0) {
+      await updateShadowList(token, shadowId, pushedMemberIds);
+    } else {
+      pushLog('Shadow List update skipped (no rows pushed).', 'info');
+    }
+
+    // Refresh local dedup state so another push wouldn't re-add the same records.
+    pushLog('', 'info');
+    pushLog('Refreshing dedup cache...', 'info');
+    var refresh2 = await fetchSheet(token, principleId);
+    connection.principleSheet = refresh2;
+    connection.principleColMap = buildColMap(refresh2.columns || []);
+    connection.existingKeyMap = buildNarrowKeyMap(refresh2.rows || [], connection.principleColMap);
+    pushLog('Done.', 'success');
+  } catch (e) {
+    pushLog('Push aborted: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = 'Push Approved to Smartsheet';
+    updatePushBtn();
+  }
+}
+
+// Walk every row of the Shadow List looking for cells whose normalized
+// value matches a pushed Member ID. When found, color green if not
+// already green. Logs matched / already-green / not-found counts.
+async function updateShadowList(token, shadowId, memberIds) {
+  pushLog('', 'info');
+  pushLog('Updating Shadow List...', 'info');
+  var sheet;
+  try {
+    sheet = await fetchSheet(token, shadowId);
+  } catch (e) {
+    pushLog('  ERROR loading Shadow List: ' + e.message, 'error');
+    return;
+  }
+  var rows = sheet.rows || [];
+
+  // Deduplicate + sort for deterministic log order.
+  var uniq = {};
+  for (var i = 0; i < memberIds.length; i++) uniq[memberIds[i]] = true;
+  var ids = Object.keys(uniq).sort();
+
+  var matched = 0, alreadyGreen = 0, notFound = 0;
+  var notFoundList = [];
+
+  for (var idI = 0; idI < ids.length; idI++) {
+    var mid = ids[idI];
+    var midNorm = normalizeForShadow(mid);
+    var found = false;
+    for (var ri = 0; ri < rows.length && !found; ri++) {
+      var cells = rows[ri].cells || [];
+      for (var ci = 0; ci < cells.length; ci++) {
+        var cell = cells[ci];
+        var cellVal = String(cell.value || cell.displayValue || '').trim();
+        if (!cellVal) continue;
+        if (normalizeForShadow(cellVal) === midNorm) {
+          found = true;
+          var fmt = cell.format || '';
+          var parts = fmt.split(',');
+          var isGreen = parts.length > 9 && parts[9] === String(SMARTSHEET_GREEN);
+          if (isGreen) {
+            pushLog('  ~ Already green: ' + mid, 'info');
+            alreadyGreen++;
+          } else {
+            try {
+              await updateCellColor(token, shadowId, rows[ri].id, cell.columnId, cellVal, SMARTSHEET_GREEN);
+              pushLog('  + Colored green: ' + mid, 'success');
+              matched++;
+            } catch (e) {
+              pushLog('  ERROR coloring ' + mid + ': ' + e.message, 'error');
+            }
+          }
+          break;
+        }
+      }
+    }
+    if (!found) {
+      pushLog('  ? Not found in Shadow List: ' + mid, 'warn');
+      notFound++;
+      notFoundList.push(mid);
+    }
+  }
+
+  pushLog('', 'info');
+  pushLog('Shadow List summary: ' + matched + ' colored, ' + alreadyGreen + ' already green, ' + notFound + ' not found',
+    notFound > 0 ? 'warn' : 'success');
+  if (notFoundList.length > 0) {
+    pushLog('Not found: ' + notFoundList.join(', '), 'warn');
+  }
+}
+
+
 async function parseAll() {
   var btn = document.getElementById('parseBtn');
   btn.disabled = true;
@@ -775,7 +1225,8 @@ async function parseAll() {
 
   btn.disabled = false;
   btn.innerHTML = 'Parse PDFs';
-  document.getElementById('futureNote').style.display = 'block';
+  document.getElementById('pushRow').classList.remove('hidden');
+  updatePushBtn();
 }
 
 async function parseOneFile(file) {
@@ -1363,6 +1814,10 @@ function renderRecords() {
     }
   }
 
+  // Cache for pushApproved() so it can resolve dispositions without re-running dedup.
+  lastApproved = approved;
+  lastSuspects = suspects;
+
   document.getElementById('recordsTotal').textContent =
     allRecords.length + ' total · ' + approved.length + ' approved · ' + suspects.length + ' suspected';
   document.getElementById('approvedCount').textContent = approved.length;
@@ -1381,6 +1836,7 @@ function renderRecords() {
   else switchTab('approved');
 
   document.getElementById('recordsPanel').classList.add('visible');
+  updatePushBtn();
 }
 
 function switchTab(which) {
